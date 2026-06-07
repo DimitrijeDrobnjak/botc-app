@@ -14,7 +14,7 @@ import circle from "./assets/grimoire/circle.png";
 import b_snv from "./assets/backgrounds/b_snv.png";
 import b_bmr from "./assets/backgrounds/b_bmr.png";
 import b_tb from "./assets/backgrounds/b_tb.png";
-import gameTable from "./assets/backgrounds/game.PNG"
+import gameTable from "./assets/backgrounds/game.png"
 
 import tbSheet from "./assets/sheets/tb_script.png";
 import bmrSheet from "./assets/sheets/bmr_script.png";
