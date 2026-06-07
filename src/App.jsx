@@ -38,6 +38,8 @@ export default function App() {
   const [dragging, setDragging] = useState({ id: null, type: null });
   const [playerStatus, setPlayerStatus] = useState({});
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
+  const [jugglerMap, setJugglerMap] = useState({});
+  const [selectedRole, setSelectedRole] = useState(null);
 
   const reminderKey = (name) => `reminder_${name}`;
 
@@ -452,9 +454,96 @@ else if (script === "BMR") {
       text: "3 ATTACKS",
     });
 }
+else if (script === "SNV") {
+  const getRole = (name) =>
+    sectsAndViolets.townsfolk
+      .concat(sectsAndViolets.outsiders)
+      .concat(sectsAndViolets.minions)
+      .concat(sectsAndViolets.demon)
+      .find((r) => r.name === name);
+
+  const pushRole = (role, text) => {
+    reminders.push({
+      role: {
+        ...role,
+        description: role?.description || "",
+      },
+      text,
+    });
+  };
+
+  // Snake Charmer
+  if (hasRole("Snake Charmer"))
+    pushRole(getRole("Snake Charmer"), "POISONED");
+
+  // Seamstress
+  if (hasRole("Seamstress"))
+    pushRole(getRole("Seamstress"), "ABILITY");
+
+  // Philosopher (2 reminders)
+  if (hasRole("Philosopher")) {
+    const r = getRole("Philosopher");
+    pushRole(r, "ABILITY");
+    pushRole(r, "DRUNK");
+  }
+
+  // Artist
+  if (hasRole("Artist"))
+    pushRole(getRole("Artist"), "ABILITY");
+
+  // Juggler (STATE 0–5)
+  if (hasRole("Juggler")) {
+  const r = getRole("Juggler");
+  const key = reminderKey("Juggler");
+
+  const value = jugglerMap[key] ?? 0;
+
+  reminders.push({
+    role: {
+      ...r,
+      description: r?.description || "",
+    },
+    text: String(value),
+    isCounter: true,
+  });
+}
+
+  // Sweetheart
+  if (hasRole("Sweetheart"))
+    pushRole(getRole("Sweetheart"), "DRUNK");
+
+  // Evil Twin
+  if (hasRole("Evil Twin"))
+    pushRole(getRole("Evil Twin"), "GOOD TWIN");
+
+  // Witch
+  if (hasRole("Witch"))
+    pushRole(getRole("Witch"), "ABILITY");
+
+  // Vigormortis (2 reminders)
+  if (hasRole("Vigormortis")) {
+    const r = getRole("Vigormortis");
+    pushRole(r, "POISONED");
+    pushRole(r, "ALIVE");
+  }
+
+  // No Dashii (2 poison reminders)
+  if (hasRole("No Dashii")) {
+    const r = getRole("No Dashii");
+    pushRole(r, "POISONED");
+    pushRole(r, "POISONED");
+  }
+
+  // Vortox (2 reminders)
+  if (hasRole("Vortox")) {
+    const r = getRole("Vortox");
+    pushRole(r, "ALL POISONED");
+    pushRole(r, "ABILITY");
+  }
+}
   const cx = window.innerWidth / 2;
-const cy = window.innerHeight / 2;
-const reminderRadius = 70;
+  const cy = window.innerHeight / 2;
+  const reminderRadius = 70;
 
   return (
     <div
@@ -575,32 +664,33 @@ const reminderRadius = 70;
   </div>
 )}
 
-
-      <button
+<button
   onClick={() => setShowAllRoles(true)}
   style={{
-  position: "absolute",
-  top: 10,
-  right: 10,
-  zIndex: 1000,
-
-  padding: "10px 18px",
-  borderRadius: 10,
-  border: "1px solid rgba(255,255,255,0.15)",
-  background: "rgba(0,0,0,0.45)",
-  color: "white",
-  fontSize: 14,
-  fontWeight: 600,
-  backdropFilter: "blur(8px)",
-  cursor: "pointer",
-}}
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 1000,
+    padding: "10px 18px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.15)",
+    background: "rgba(0,0,0,0.45)",
+    color: "white",
+    fontSize: 14,
+    fontWeight: 600,
+    backdropFilter: "blur(8px)",
+    cursor: "pointer",
+  }}
 >
   All Roles
 </button>
 
 {showAllRoles && (
   <div
-    onClick={() => setShowAllRoles(false)}
+    onClick={() => {
+      setShowAllRoles(false);
+      setSelectedRole(null);
+    }}
     style={{
       position: "fixed",
       inset: 0,
@@ -611,9 +701,12 @@ const reminderRadius = 70;
       alignItems: "center",
     }}
   >
-    {/* X button FIXED TO SCREEN */}
+    {/* X */}
     <button
-      onClick={() => setShowAllRoles(false)}
+      onClick={() => {
+        setShowAllRoles(false);
+        setSelectedRole(null);
+      }}
       style={{
         position: "fixed",
         top: 50,
@@ -662,6 +755,7 @@ const reminderRadius = 70;
               {list.map((role) => (
                 <div
                   key={role.name}
+                  onClick={() => setSelectedRole(role)}
                   style={{
                     width: 120,
                     height: 150,
@@ -674,6 +768,7 @@ const reminderRadius = 70;
                     justifyContent: "center",
                     gap: 8,
                     color: "white",
+                    cursor: "pointer",
                   }}
                 >
                   {role.icon && <img src={role.icon} width={100} />}
@@ -688,10 +783,145 @@ const reminderRadius = 70;
     </div>
   </div>
 )}
+
+{selectedRole && (
+  <div
+    onClick={() => setSelectedRole(null)}
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 10000,
+      background: "rgba(0,0,0,0.92)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
+    {/* X */}
+    <button
+      onClick={() => setSelectedRole(null)}
+      style={{
+        position: "absolute",
+        top: 20,
+        right: 20,
+        fontSize: 28,
+        background: "transparent",
+        border: "none",
+        color: "white",
+        cursor: "pointer",
+      }}
+    >
+      ✕
+    </button>
+
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        display: "flex",
+        gap: 15,
+      }}
+    >
+      {/* PIT-HAG */}
+      <button
+        onClick={() => {
+          setReminders((prev) => [
+            ...prev,
+            {
+              role: {
+                name: selectedRole.name,
+                icon: selectedRole.icon,
+              },
+              text: "PIT-HAG",
+            },
+          ]);
+          setSelectedRole(null);
+          setShowAllRoles(false);
+        }}
+        style={{
+          width: 180,
+          height: 180,
+          borderRadius: 12,
+          border: "1px solid rgba(255,255,255,0.2)",
+          background: "rgba(120,0,120,0.35)",
+          color: "white",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap:10,
+          cursor: "pointer",
+        }}
+      >
+        <div
+          style={{
+            width: 80,
+            height: 80,
+            backgroundImage: `url(${circle})`,
+            backgroundSize: "cover",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img src={selectedRole.icon} width={80} />
+        </div>
+        <div style={{ fontSize: 14 }}>PIT-HAG</div>
+      </button>
+
+      {/* CERENOVUS */}
+      <button
+        onClick={() => {
+          setReminders((prev) => [
+            ...prev,
+            {
+              role: {
+                name: selectedRole.name,
+                icon: selectedRole.icon,
+              },
+              text: "CERENOVUS",
+            },
+          ]);
+          setSelectedRole(null);
+          setShowAllRoles(false);
+        }}
+        style={{
+          width: 180,
+          height: 180,
+          borderRadius: 12,
+          border: "1px solid rgba(255,255,255,0.2)",
+          background: "rgba(0,120,120,0.35)",
+          color: "white",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          cursor: "pointer",
+        }}
+      >
+        <div
+          style={{
+            width: 80,
+            height: 80,
+            backgroundImage: `url(${circle})`,
+            backgroundSize: "cover",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img src={selectedRole.icon} width={80} />
+        </div>
+        <div style={{ fontSize: 14 }}>CERENOVUS</div>
+      </button>
+    </div>
+  </div>
+)}
+
       {/* REMINDERS */}
       {/* REMINDERS (DRAGGABLE) */}
 {reminders.map((reminder, i) => {
-  const key = reminderKey(reminder.role.name);
+  const key = `${reminder.role.name}-${i}`;
 
 const p = reminderPositions[key] || {
     x: cx + Math.cos((i / reminders.length) * Math.PI * 2) * reminderRadius,
@@ -702,13 +932,26 @@ const p = reminderPositions[key] || {
     <div
       key={key}
       onMouseDown={() =>
-  setDragging({ id: reminderKey(reminder.role.name), type: "reminder" })
+  setDragging({ id: `${reminder.role.name}-${i}`, type: "reminder" })
 }
-onTouchStart={() =>
-  setDragging({ id: reminderKey(reminder.role.name), type: "reminder" })
+      onTouchStart={() =>
+        setDragging({ id: `${reminder.role.name}-${i}`, type: "reminder" })
+      }
+      onMouseUp={stop}
+      onTouchEnd={stop}
+      onClick={(e) => {
+              e.stopPropagation();
+
+              if (reminder.role.name === "Juggler") {
+  setJugglerMap((prev) => {
+    const current = prev[key] ?? 0;
+    return {
+      ...prev,
+      [key]: current >= 5 ? 0 : current + 1,
+    };
+  });
 }
-onMouseUp={stop}
-onTouchEnd={stop}
+            }}
       style={{
         position: "absolute",
         left: p.x,
@@ -750,7 +993,9 @@ onTouchEnd={stop}
       pointerEvents: "none",
     }}
   >
-    {reminder.text}
+    {reminder.role.name === "Juggler"
+  ? (jugglerMap[key] ?? 0)
+  : reminder.text}
   </div>
 )}
     </div>
@@ -948,6 +1193,27 @@ if (screen === "menu") {
   if (gamePhase === "assign") {
   const role = assignedRoles[currentPlayer];
 
+  const getRoleType = (name) => {
+    if (troubleBrewing?.townsfolk?.some((r) => r.name === name)) return "Townsfolk";
+    if (troubleBrewing?.outsiders?.some((r) => r.name === name)) return "Outsider";
+    if (troubleBrewing?.minions?.some((r) => r.name === name)) return "Minion";
+    if (troubleBrewing?.demon?.some((r) => r.name === name)) return "Demon";
+
+    if (badMoonRising?.townsfolk?.some((r) => r.name === name)) return "Townsfolk";
+    if (badMoonRising?.outsiders?.some((r) => r.name === name)) return "Outsider";
+    if (badMoonRising?.minions?.some((r) => r.name === name)) return "Minion";
+    if (badMoonRising?.demon?.some((r) => r.name === name)) return "Demon";
+
+    if (sectsAndViolets?.townsfolk?.some((r) => r.name === name)) return "Townsfolk";
+    if (sectsAndViolets?.outsiders?.some((r) => r.name === name)) return "Outsider";
+    if (sectsAndViolets?.minions?.some((r) => r.name === name)) return "Minion";
+    if (sectsAndViolets?.demon?.some((r) => r.name === name)) return "Demon";
+
+    return "";
+  };
+
+  const roleType = getRoleType(role.name);
+
   return (
     <div
       style={{
@@ -956,65 +1222,96 @@ if (screen === "menu") {
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        gap: 20,
+        gap: 16,
         textAlign: "center",
       }}
     >
       {!revealed ? (
-        <button style={{ padding: 20 }} onClick={() => setRevealed(true)}>
+        <button
+          onClick={() => setRevealed(true)}
+          style={{
+            padding: "14px 26px",
+            borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.2)",
+            background: "rgba(0,0,0,0.6)",
+            color: "white",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            backdropFilter: "blur(10px)",
+          }}
+        >
           Reveal Role
         </button>
       ) : (
         <>
-          <h1>{role.name}</h1>
+          <h1 style={{ margin: 0 }}>{role.name}</h1>
+
+          {/* ROLE TYPE */}
+          <div
+            style={{
+              color: "white",
+              fontSize: 16,
+              opacity: 0.7,
+              letterSpacing: 1,
+              marginTop: -8,
+            }}
+          >
+            {roleType}
+          </div>
 
           {/* TOKEN */}
           <div
-  style={{
-    width: 140,
-    height: 140,
-    backgroundImage: `url(${circle})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  }}
->
-  {role.icon && (
-    <img
-      src={role.icon}
-      width={200}
-      draggable={false}
-    />
-  )}
-</div>
+            style={{
+              width: 150,
+              height: 150,
+              backgroundImage: `url(${circle})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              filter: "drop-shadow(0 0 10px rgba(0,0,0,0.5))",
+            }}
+          >
+            {role.icon && (
+              <img
+                src={role.icon}
+                style={{
+                  width: 120,
+                  height: 120,
+                  objectFit: "contain",
+                }}
+                draggable={false}
+              />
+            )}
+          </div>
 
           {/* DESCRIPTION */}
-<div
-  style={{
-    maxWidth: 400,
-    marginTop: 10,
-    padding: "5px 20px",
-    background: "rgba(0,0,0,0.45)",
-    border: "1px solid rgba(255,255,255,0.15)",
-    borderRadius: 0,
-    color: "white",
-  }}
->
-  <p
-    style={{
-      fontSize: 14,
-      lineHeight: 1.4,
-      margin: 0,
-      opacity: 1,
-    }}
-  >
-    {role.description || "No description available."}
-  </p>
-</div>
+          <div
+            style={{
+              maxWidth: 420,
+              marginTop: 8,
+              padding: "12px 16px",
+              background: "rgba(0,0,0,0.45)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: 12,
+              color: "white",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 14,
+                lineHeight: 1.4,
+                margin: 0,
+              }}
+            >
+              {role.description || "No description available."}
+            </p>
+          </div>
+
+          {/* HIDE BUTTON */}
           <button
-            style={{ padding: 15 }}
             onClick={() => {
               setRevealed(false);
 
@@ -1023,6 +1320,17 @@ if (screen === "menu") {
               } else {
                 setGamePhase("finished");
               }
+            }}
+            style={{
+              padding: "14px 26px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.2)",
+              background: "rgba(120,0,0,0.55)",
+              color: "white",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              backdropFilter: "blur(10px)",
             }}
           >
             Hide Role
@@ -1035,31 +1343,46 @@ if (screen === "menu") {
 
   // ---------------- FINISHED ----------------
   if (gamePhase === "finished") {
-    return (
-      <div
-        style={{
-          ...pageStyle(gameBackground),
-    minHeight: "100dvh",
-    width: "100%",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    textAlign: "center",
-    gap: 20,
-        }}
-      >
-        <h1>All roles distributed</h1>
+  return (
+    <div
+      style={{
+        ...pageStyle(gameBackground),
+        minHeight: "100dvh",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        textAlign: "center",
+        gap: 18,
+        color: "white",
+      }}
+    >
+      <h1 style={{ margin: 0 }}>All roles distributed</h1>
 
-        <button
-          style={{ padding: 20 }}
-          onClick={() => setGamePhase("game")}
-        >
-          Start Game
-        </button>
-      </div>
-    );
-  }
+      <button
+        onClick={() => setGamePhase("game")}
+        style={{
+          padding: "16px 32px",
+          borderRadius: 14,
+          border: "1px solid rgba(255,255,255,0.2)",
+          background: "linear-gradient(135deg, rgba(0,0,0,0.7), rgba(80,0,120,0.5))",
+          color: "white",
+          fontSize: 16,
+          fontWeight: 700,
+          cursor: "pointer",
+          backdropFilter: "blur(10px)",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
+          transition: "0.2s",
+        }}
+        onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+        onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1.0)")}
+      >
+        Start Game
+      </button>
+    </div>
+  );
+}
 // ---------------- ROLES ----------------
 return (
   <div
