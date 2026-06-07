@@ -42,6 +42,7 @@ export default function App() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [temporaryRoles, setTemporaryRoles] = useState([]);
   const [moved, setMoved] = useState(false);
+  const [tokenMark, setTokenMark] = useState({});
   const closeModal = () => {
   setSelectedRole(null);
   setShowAllRoles(false);
@@ -73,6 +74,20 @@ export default function App() {
     );
   }
 
+  function cycleMark(key) {
+  setTokenMark((prev) => {
+    const current = prev[key] || "white";
+
+    const next =
+      current === "white"
+        ? "purple"
+        : current === "purple"
+        ? "black"
+        : "white";
+
+    return { ...prev, [key]: next };
+  });
+}
   function shuffle(array) {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -375,7 +390,7 @@ else if (script === "BMR") {
   }
 
   if (hasRole("Professor"))
-    pushRole("Professor", { text: "" });
+    pushRole("Professor", { text: "ABILITY" });
 
   if (hasRole("Minstrel"))
     reminders.push({
@@ -833,14 +848,16 @@ else if (script === "SNV") {
     >
       {/* PIT-HAG */}
       <button
-       onClick={() => {
+        onTouchEnd={(e) => {
+  if (moved) return; // ignorisi drag
+
   const id = crypto.randomUUID();
 
   setTemporaryRoles((prev) => [
     ...prev,
     {
       id,
-      baseRole: role,
+      baseRole: selectedRole,
       label: "PIT-HAG",
     },
   ]);
@@ -853,7 +870,7 @@ else if (script === "SNV") {
     },
   }));
 
-  setShowAllRoles(false);
+  closeModal();
 }}
         style={{
           width: 180,
@@ -1022,87 +1039,85 @@ const p = reminderPositions[key] || {
 })}
 
 <>
-  {/* TOKENS */}
-  {assignedRoles.map((role) => {
-    const key = reminderKey(role.name);
-    const p = tokenPositions[key] || { x: 100, y: 100 };
+ {assignedRoles.map((role) => {
+  const key = reminderKey(role.name);
+  const p = tokenPositions[key] || { x: 100, y: 100 };
 
-    return (
+  return (
+    <div
+      key={key}
+      onMouseDown={() => setDragging({ id: key, type: "token" })}
+      onTouchStart={() => setDragging({ id: key, type: "token" })}
+      onMouseUp={stop}
+      onTouchEnd={stop}
+      style={{
+        position: "absolute",
+        left: p.x,
+        top: p.y,
+        transform: "translate(-50%, -50%)",
+        width: 75,
+        height: 75,
+        backgroundImage: `url(${circle})`,
+        backgroundSize: "cover",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {/* ICON */}
+      {role.icon && (
+        <img
+          src={role.icon}
+          width={65}
+          style={{ marginTop: -15 }}
+          draggable={false}
+        />
+      )}
+
+      {/* NAME */}
       <div
-        key={key}
-        onMouseDown={() => setDragging({ id: key, type: "token" })}
-        onTouchStart={() => setDragging({ id: key, type: "token" })}
-        onMouseUp={stop}
-        onTouchEnd={stop}
         style={{
-          position: "absolute",
-          left: p.x,
-          top: p.y,
-          transform: "translate(-50%, -50%)",
-          width: 75,
-          height: 75,
-          backgroundImage: `url(${circle})`,
-          backgroundSize: "cover",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
+          fontSize: 10,
+          color: "white",
+          lineHeight: 1,
+          textShadow: "0 1px 2px black",
+          maxWidth: "100%",
+          overflow: "hidden",
+          whiteSpace: "nowrap",
+          padding: "0 2px",
+          marginTop: "-10px",
         }}
       >
-        {role.icon && <img src={role.icon} width={65} draggable={false} />}
-
-        <div style={{ fontSize: 10, color: "white" }}>
-          {role.name}
-        </div>
+        {role.name}
       </div>
-    );
-  })}
 
-  {/* TEMPORARY TOKENS (SEPARATNO!) */}
-  {temporaryRoles.map((t) => {
-    const key = t.id;
-    const p = tokenPositions[key] || {
-      x: window.innerWidth / 2,
-      y: window.innerHeight / 2,
-    };
-
-    return (
+      {/* STATUS DOT */}
       <div
-        key={key}
-        onMouseDown={() => setDragging({ id: key, type: "token" })}
-        onTouchStart={() => setDragging({ id: key, type: "token" })}
-        onMouseUp={stop}
-        onTouchEnd={stop}
+        onClick={(e) => {
+          e.stopPropagation();
+          cycleStatus(key);
+        }}
         style={{
           position: "absolute",
-          left: p.x,
-          top: p.y,
-          transform: "translate(-50%, -50%)",
-          width: 65,
-          height: 65,
-          backgroundImage: `url(${circle})`,
-          backgroundSize: "cover",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 4,
+          top: 4,
+          right: 4,
+          width: 17,
+          height: 17,
+          borderRadius: "50%",
+          background:
+            playerStatus[key] === "dead_vote"
+              ? "purple"
+              : playerStatus[key] === "dead_no_vote"
+              ? "black"
+              : "white",
+          border: "1px solid rgba(255,255,255,0.6)",
+          cursor: "pointer",
         }}
-      >
-        <img src={t.baseRole.icon} width={55} draggable={false} />
-
-        <div
-          style={{
-            position: "absolute",
-            bottom: -14,
-            fontSize: 10,
-            color: "white",
-          }}
-        >
-          {t.label}
-        </div>
-      </div>
-    );
-  })}
+      />
+    </div>
+  );
+})}
 </>
     </div>
   );
