@@ -853,7 +853,7 @@ else if (script === "SNV") {
     >
       {/* PIT-HAG */}
       <button
-        onTouchEnd={(e) => {
+       onClick={(e) => {
   if (moved) return; // ignorisi drag
   const id = crypto.randomUUID();
 
@@ -882,7 +882,7 @@ setShowAllRoles(false);
           height: 180,
           borderRadius: 12,
           border: "1px solid rgba(255,255,255,0.2)",
-          background: "rgba(0,120,120,0.35)",
+          background: "rgba(211, 101, 255, 0.35)",
           color: "white",
           display: "flex",
           flexDirection: "column",
