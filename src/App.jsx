@@ -869,8 +869,8 @@ setTemporaryRoles((prev) => [
 setTokenPositions((prev) => ({
   ...prev,
   [id]: {
-    x: window.innerWidth / 2,
-    y: window.innerHeight / 2,
+    x: window.innerWidth * 0.5,
+    y: window.innerHeight * 0.5,
   },
 }));
 
