@@ -98,6 +98,10 @@ export default function App() {
 }
 
   useEffect(() => {
+  console.log("TEMP ROLES:", temporaryRoles);
+}, [temporaryRoles]);
+
+  useEffect(() => {
   function handleMove(e) {
     if (!dragging.id) return;
     setMoved(true);
@@ -591,6 +595,7 @@ else if (script === "SNV") {
           setScript(null);
           setSelectedRoles([]);
           setAssignedRoles([]);
+          setTemporaryRoles([]);
           setCurrentPlayer(0);
           setRevealed(false);
           setTokenPositions({});
@@ -850,27 +855,26 @@ else if (script === "SNV") {
       <button
         onTouchEnd={(e) => {
   if (moved) return; // ignorisi drag
-
   const id = crypto.randomUUID();
 
-  setTemporaryRoles((prev) => [
-    ...prev,
-    {
-      id,
-      baseRole: selectedRole,
-      label: "PIT-HAG",
-    },
-  ]);
+setTemporaryRoles((prev) => [
+  ...prev,
+  {
+    id,
+    baseRole: selectedRole,
+    label: "PIT-HAG",
+  },
+]);
 
-  setTokenPositions((prev) => ({
-    ...prev,
-    [id]: {
-      x: window.innerWidth / 2 + Math.random() * 50,
-      y: window.innerHeight / 2 + Math.random() * 50,
-    },
-  }));
+setTokenPositions((prev) => ({
+  ...prev,
+  [id]: {
+    x: window.innerWidth / 2,
+    y: window.innerHeight / 2,
+  },
+}));
 
-  closeModal();
+closeModal();
 }}
         style={{
           width: 180,
@@ -908,17 +912,25 @@ else if (script === "SNV") {
         onClick={() => {
   const id = crypto.randomUUID();
 
-  setTemporaryRoles((prev) => [
-    ...prev,
-    {
-      id,
-      baseRole: selectedRole,
-      label: "CERENOVUS",
-    },
-  ]);
+setTemporaryRoles((prev) => [
+  ...prev,
+  {
+    id,
+    baseRole: selectedRole,
+    label: "CERENOVUS",
+  },
+]);
 
-  setSelectedRole(null);
-  setShowAllRoles(false);
+setTokenPositions((prev) => ({
+  ...prev,
+  [id]: {
+    x: window.innerWidth * 0.5,
+y: window.innerHeight * 0.5,
+  },
+}));
+
+setSelectedRole(null);
+setShowAllRoles(false);
 }}
         style={{
           width: 180,
@@ -1119,9 +1131,78 @@ const p = reminderPositions[key] || {
   );
 })}
 </>
+    {temporaryRoles.map((role) => {
+      console.log("TEMP MAP HIT", role.id);
+  const p = tokenPositions[role.id] || {
+    x: window.innerWidth / 2,
+    y: window.innerHeight / 2,
+  };
+
+  return (
+    <div
+      key={role.id}
+      onMouseDown={() =>
+        setDragging({ id: role.id, type: "token" })
+      }
+      onTouchStart={() =>
+        setDragging({ id: role.id, type: "token" })
+      }
+      onMouseUp={stop}
+      onTouchEnd={stop}
+      style={{
+        position: "absolute",
+        left: p.x,
+        top: p.y,
+        transform: "translate(-50%, -50%)",
+        width: 75,
+        height: 75,
+        zIndex: 50,
+        backgroundImage: `url(${circle})`,
+        backgroundSize: "cover",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <img
+        src={role.baseRole.icon}
+        width={65}
+        style={{ marginTop: -15 }}
+        draggable={false}
+      />
+
+      <div
+        style={{
+          fontSize: 10,
+          color: "white",
+          textShadow: "0 1px 2px black",
+          marginTop: "-10px",
+        }}
+      >
+        {role.baseRole.name}
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          bottom: -12,
+          fontSize: 8,
+          color: "white",
+          fontWeight: "bold",
+          textShadow: "0 1px 2px black",
+        }}
+      >
+        {role.label}
+      </div>
+    </div>
+  );
+})}
+
     </div>
   );
 }
+
 if (screen === "menu") {
   return (
     <div style={pageStyle(menuBackground)}>
@@ -1162,6 +1243,7 @@ if (screen === "menu") {
             }}
             onClick={() => {
               setSelectedRoles([]);
+              setTemporaryRoles([]);
               setScript("TB");
               setScreen("roles");
               setGamePhase("menu");
@@ -1181,6 +1263,7 @@ if (screen === "menu") {
             }}
             onClick={() => {
               setSelectedRoles([]);
+              setTemporaryRoles([]);
               setScript("BMR");
               setScreen("roles");
               setGamePhase("menu");
@@ -1200,6 +1283,7 @@ if (screen === "menu") {
             }}
             onClick={() => {
               setSelectedRoles([]);
+              setTemporaryRoles([]);
               setScript("SNV");
               setScreen("roles");
               setGamePhase("menu");
