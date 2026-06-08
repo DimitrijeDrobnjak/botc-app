@@ -874,20 +874,21 @@ setTokenPositions((prev) => ({
   },
 }));
 
-closeModal();
+setSelectedRole(null);
+setShowAllRoles(false);
 }}
         style={{
           width: 180,
           height: 180,
           borderRadius: 12,
           border: "1px solid rgba(255,255,255,0.2)",
-          background: "rgba(120,0,120,0.35)",
+          background: "rgba(0,120,120,0.35)",
           color: "white",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          gap:10,
+          gap: 10,
           cursor: "pointer",
         }}
       >
