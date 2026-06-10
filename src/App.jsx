@@ -856,8 +856,12 @@ else if (script === "SNV") {
        onClick={(e) => {
   if (moved) return; // ignorisi drag
   const id = crypto.randomUUID();
-console.log("TEMP:", temporaryRoles);
-console.log("TOKENS:", tokenPositions);
+alert(
+  "TEMP:\n" +
+  JSON.stringify(temporaryRoles, null, 2) +
+  "\n\nTOKENS:\n" +
+  JSON.stringify(tokenPositions, null, 2)
+);
 setTemporaryRoles((prev) => [
   ...prev,
   {
