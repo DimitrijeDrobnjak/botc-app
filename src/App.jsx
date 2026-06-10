@@ -815,7 +815,18 @@ else if (script === "SNV") {
 )}
 
 {selectedRole && (
-  <div>
+  <div
+    onClick={() => setSelectedRole(null)}
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 10000,
+      background: "rgba(0,0,0,0.92)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
     {/* X */}
     <button
       onClick={() => setSelectedRole(null)}
