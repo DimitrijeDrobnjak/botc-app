@@ -855,12 +855,6 @@ else if (script === "SNV") {
       <button
        onClick={(e) => {
   const id = crypto.randomUUID();
-alert(
-  "TEMP:\n" +
-  JSON.stringify(temporaryRoles, null, 2) +
-  "\n\nTOKENS:\n" +
-  JSON.stringify(tokenPositions, null, 2)
-);
 setTemporaryRoles((prev) => [
   ...prev,
   {
@@ -898,8 +892,8 @@ setShowAllRoles(false);
       >
         <div
           style={{
-            width: 80,
-            height: 80,
+            width: 70,
+            height: 70,
             backgroundImage: `url(${circle})`,
             backgroundSize: "cover",
             display: "flex",
@@ -907,9 +901,9 @@ setShowAllRoles(false);
             justifyContent: "center",
           }}
         >
-          <img src={selectedRole.icon} width={80} />
+          <img src={selectedRole.icon} width={70} />
         </div>
-        <div style={{ fontSize: 14 }}>PIT-HAG</div>
+        <div style={{ fontSize: 16 }}>PIT-HAG</div>
       </button>
 
       {/* CERENOVUS */}
@@ -954,8 +948,8 @@ setShowAllRoles(false);
       >
         <div
           style={{
-            width: 80,
-            height: 80,
+            width: 70,
+            height: 70,
             backgroundImage: `url(${circle})`,
             backgroundSize: "cover",
             display: "flex",
@@ -963,9 +957,9 @@ setShowAllRoles(false);
             justifyContent: "center",
           }}
         >
-          <img src={selectedRole.icon} width={80} />
+          <img src={selectedRole.icon} width={70} />
         </div>
-        <div style={{ fontSize: 14 }}>CERENOVUS</div>
+        <div style={{ fontSize: 16 }}>CERENOVUS</div>
       </button>
     </div>
   </div>
