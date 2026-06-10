@@ -851,34 +851,50 @@ else if (script === "SNV") {
 
     {/* CENTRAL ROLE (FULL VIEW) */}
     <div
+  style={{
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "column",
+    gap: 20,
+  }}
+>
+  <div
+    style={{
+      width: "min(60vw, 320px)",
+      height: "min(60vw, 320px)",
+      backgroundImage: `url(${circle})`,
+      backgroundSize: "cover",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    <img
+      src={selectedRole.icon}
       style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        width: "85%",
+        height: "85%",
+        objectFit: "contain",
       }}
-    >
-      <div
-        style={{
-          width: "min(60vw, 320px)",
-          height: "min(60vw, 320px)",
-          backgroundImage: `url(${circle})`,
-          backgroundSize: "cover",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <img
-          src={selectedRole.icon}
-          style={{
-            width: "85%",
-            height: "85%",
-            objectFit: "contain",
-          }}
-        />
-      </div>
-    </div>
+    />
+  </div>
+
+  {/* ROLE NAME */}
+  <div
+    style={{
+      fontSize: 34,
+      fontWeight: 700,
+      color: "white",
+      textAlign: "center",
+      textShadow: "0 3px 10px rgba(0,0,0,0.8)",
+      letterSpacing: 1,
+    }}
+  >
+    {selectedRole.name}
+  </div>
+</div>
 
     {/* BOTTOM ACTIONS */}
     <div
@@ -1187,8 +1203,8 @@ const p = reminderPositions[key] || {
 
       <div
         style={{
-          fontSize: 14,
-          color: "black",
+          fontSize: 11,
+          color: "white",
           textShadow: "0 1px 2px black",
           marginTop: "-10px",
         }}
@@ -1200,8 +1216,8 @@ const p = reminderPositions[key] || {
         style={{
           position: "absolute",
           bottom: -12,
-          fontSize: 8,
-          color: "white",
+          fontSize: 10,
+          color: "black",
           fontWeight: "bold",
           textShadow: "0 1px 2px black",
         }}
