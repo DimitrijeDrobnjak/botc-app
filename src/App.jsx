@@ -816,18 +816,23 @@ else if (script === "SNV") {
 
 {selectedRole && (
   <div
-    onClick={() => setSelectedRole(null)}
+    onClick={(e) => {
+      if (e.target === e.currentTarget) {
+        setSelectedRole(null);
+      }
+    }}
     style={{
       position: "fixed",
       inset: 0,
       zIndex: 10000,
-      background: "rgba(0,0,0,0.92)",
+      background: "rgba(0,0,0,0.95)",
       display: "flex",
-      justifyContent: "center",
+      flexDirection: "column",
       alignItems: "center",
+      justifyContent: "center",
     }}
   >
-    {/* X */}
+    {/* CLOSE */}
     <button
       onClick={() => setSelectedRole(null)}
       style={{
@@ -844,122 +849,131 @@ else if (script === "SNV") {
       ✕
     </button>
 
+    {/* CENTRAL ROLE (FULL VIEW) */}
     <div
-      onClick={(e) => e.stopPropagation()}
       style={{
+        flex: 1,
         display: "flex",
-        gap: 15,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          width: "min(60vw, 320px)",
+          height: "min(60vw, 320px)",
+          backgroundImage: `url(${circle})`,
+          backgroundSize: "cover",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <img
+          src={selectedRole.icon}
+          style={{
+            width: "85%",
+            height: "85%",
+            objectFit: "contain",
+          }}
+        />
+      </div>
+    </div>
+
+    {/* BOTTOM ACTIONS */}
+    <div
+      style={{
+        width: "100%",
+        padding: 20,
+        display: "flex",
+        justifyContent: "center",
+        gap: 20,
+        position: "absolute",
+        bottom: 0,
       }}
     >
       {/* PIT-HAG */}
       <button
-       onClick={(e) => {
-  const id = crypto.randomUUID();
-setTemporaryRoles((prev) => [
-  ...prev,
-  {
-    id,
-    baseRole: selectedRole,
-    label: "PIT-HAG",
-  },
-]);
+        onClick={() => {
+          const id =
+            crypto?.randomUUID?.() ??
+            `${Date.now()}_${Math.random()}`;
 
-setTokenPositions((prev) => ({
-  ...prev,
-  [id]: {
-    x: window.innerWidth * 0.5,
-    y: window.innerHeight * 0.5,
-  },
-}));
+          setTemporaryRoles((prev) => [
+            ...prev,
+            {
+              id,
+              baseRole: selectedRole,
+              label: "PIT-HAG",
+            },
+          ]);
 
-setSelectedRole(null);
-setShowAllRoles(false);
-}}
+          setTokenPositions((prev) => ({
+            ...prev,
+            [id]: {
+              x: window.innerWidth / 2,
+              y: window.innerHeight / 2,
+            },
+          }));
+
+          setSelectedRole(null);
+          setShowAllRoles(false);
+        }}
         style={{
-          width: 180,
-          height: 180,
+          flex: 1,
+          maxWidth: 200,
+          padding: 16,
           borderRadius: 12,
-          border: "1px solid rgba(255,255,255,0.2)",
           background: "rgba(211, 101, 255, 0.35)",
+          border: "1px solid rgba(255,255,255,0.2)",
           color: "white",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
+          fontSize: 14,
           cursor: "pointer",
         }}
       >
-        <div
-          style={{
-            width: 70,
-            height: 70,
-            backgroundImage: `url(${circle})`,
-            backgroundSize: "cover",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <img src={selectedRole.icon} width={70} />
-        </div>
-        <div style={{ fontSize: 16 }}>PIT-HAG</div>
+        PIT-HAG
       </button>
 
       {/* CERENOVUS */}
       <button
         onClick={() => {
-  const id = crypto.randomUUID();
+          const id =
+            crypto?.randomUUID?.() ??
+            `${Date.now()}_${Math.random()}`;
 
-setTemporaryRoles((prev) => [
-  ...prev,
-  {
-    id,
-    baseRole: selectedRole,
-    label: "CERENOVUS",
-  },
-]);
+          setTemporaryRoles((prev) => [
+            ...prev,
+            {
+              id,
+              baseRole: selectedRole,
+              label: "CERENOVUS",
+            },
+          ]);
 
-setTokenPositions((prev) => ({
-  ...prev,
-  [id]: {
-    x: window.innerWidth * 0.5,
-y: window.innerHeight * 0.5,
-  },
-}));
+          setTokenPositions((prev) => ({
+            ...prev,
+            [id]: {
+              x: window.innerWidth / 2,
+              y: window.innerHeight / 2,
+            },
+          }));
 
-setSelectedRole(null);
-setShowAllRoles(false);
-}}
+          setSelectedRole(null);
+          setShowAllRoles(false);
+        }}
         style={{
-          width: 180,
-          height: 180,
+          flex: 1,
+          maxWidth: 200,
+          padding: 16,
           borderRadius: 12,
-          border: "1px solid rgba(255,255,255,0.2)",
           background: "rgba(0,120,120,0.35)",
+          border: "1px solid rgba(255,255,255,0.2)",
           color: "white",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
+          fontSize: 14,
           cursor: "pointer",
         }}
       >
-        <div
-          style={{
-            width: 70,
-            height: 70,
-            backgroundImage: `url(${circle})`,
-            backgroundSize: "cover",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <img src={selectedRole.icon} width={70} />
-        </div>
-        <div style={{ fontSize: 16 }}>CERENOVUS</div>
+        CERENOVUS
       </button>
     </div>
   </div>
@@ -1153,8 +1167,8 @@ const p = reminderPositions[key] || {
         left: p.x,
         top: p.y,
         transform: "translate(-50%, -50%)",
-        width: 75,
-        height: 75,
+        width: 70,
+        height: 70,
         zIndex: 50,
         backgroundImage: `url(${circle})`,
         backgroundSize: "cover",
@@ -1173,8 +1187,8 @@ const p = reminderPositions[key] || {
 
       <div
         style={{
-          fontSize: 10,
-          color: "white",
+          fontSize: 14,
+          color: "black",
           textShadow: "0 1px 2px black",
           marginTop: "-10px",
         }}
