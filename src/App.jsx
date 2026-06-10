@@ -854,7 +854,6 @@ else if (script === "SNV") {
       {/* PIT-HAG */}
       <button
        onClick={(e) => {
-  if (moved) return; // ignorisi drag
   const id = crypto.randomUUID();
 alert(
   "TEMP:\n" +
