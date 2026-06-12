@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { troubleBrewing } from "./data/troubleBrewing";
 import { badMoonRising } from "./data/badMoonRising";
 import { sectsAndViolets } from "./data/sectsAndViolets";
+import { customScript } from "./data/custom";
 
 import ccc from "./assets/ccc.png";
 import botcText from "./assets/botctext.webp"
@@ -10,6 +11,8 @@ import botcText from "./assets/botctext.webp"
 import tbLogo from "./assets/editions/tb_logo.webp";
 import bmrLogo from "./assets/editions/bmr_logo.webp";
 import snvLogo from "./assets/editions/snv_logo.webp";
+import customLogo from "./assets/editions/custom_logo.webp";
+
 import circle from "./assets/grimoire/circle.png";
 import b_snv from "./assets/backgrounds/b_snv.png";
 import b_bmr from "./assets/backgrounds/b_bmr.png";
@@ -31,6 +34,8 @@ export default function App() {
   const [gamePhase, setGamePhase] = useState("menu");
   const [assignedRoles, setAssignedRoles] = useState([]);
   const [currentPlayer, setCurrentPlayer] = useState(0);
+  const [showNightOrder, setShowNightOrder] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [drunkEnabled, setDrunkEnabled] = useState(0);
   const [reminderPositions, setReminderPositions] = useState({});
@@ -57,6 +62,8 @@ export default function App() {
       ? badMoonRising
       : script === "SNV"
       ? sectsAndViolets
+      : script === "CUSTOM"
+      ? customScript
       : null;
 
   const flatRoles = roles ? Object.values(roles).flat() : [];
@@ -64,7 +71,115 @@ export default function App() {
   const menuBackground = b_snv;
 
   const gameBackground =
-    script === "TB" ? b_tb : script === "BMR" ? b_bmr : b_snv;
+  script === "TB"
+    ? b_tb
+    : script === "BMR"
+    ? b_bmr
+    : script === "CUSTOM"
+    ? b_snv // ili tvoj custom background ako imaš poseban
+    : b_snv;
+  const nightOrderMap = {
+  "firstNight": [
+    "philosopher",
+    "lunatic",
+    "sailor",
+    "poisoner",
+    "courtier",
+    "snake charmer",
+    "godfather",
+    "devil's advocate",
+    "evil twin",
+    "witch",
+    "cerenovus",
+    "pukka",
+    "washerwoman",
+    "librarian",
+    "investigator",
+    "chef",
+    "empath",
+    "fortune teller",
+    "butler",
+    "grandmother",
+    "clockmaker",
+    "dreamer",
+    "seamstress",
+    "spy",
+    "chambermaid",
+    "mathematician",
+  ],
+  "otherNight": [
+    "philosopher",
+    "sailor",
+    "poisoner",
+    "courtier",
+    "innkeeper",
+    "gambler",
+    "snake charmer",
+    "monk",
+    "devil's advocate",
+    "witch",
+    "cerenovus",
+    "pit-hag",
+    "scarlet woman",
+    "lunatic",
+    "exorcist",
+    "imp",
+    "zombuul",
+    "pukka",
+    "shabaloth",
+    "po",
+    "fang gu",
+    "no dashii",
+    "vortox",
+    "vigormortis",
+    "assassin",
+    "godfather",
+    "gossip",
+    "barber",
+    "sweetheart",
+    "sage",
+    "professor",
+    "tinker",
+    "moonchild",
+    "grandmother",
+    "ravenkeeper",
+    "empath",
+    "fortune teller",
+    "undertaker",
+    "dreamer",
+    "flowergirl",
+    "town crier",
+    "oracle",
+    "seamstress",
+    "juggler",
+    "butler",
+    "spy",
+    "chambermaid",
+    "mathematician",
+  ]
+}
+const roleMap = Object.fromEntries(
+  flatRoles.map((r) => [r.name.toLowerCase(), r])
+);
+  function getNightOrderRoles() {
+  if (!assignedRoles?.length) return { first: [], other: [] };
+
+  const selected = new Set(
+    assignedRoles.map((r) => r.name.toLowerCase())
+  );
+
+  const first = nightOrderMap.firstNight
+    .filter((name) => selected.has(name))
+    .map((name) => roleMap[name])
+    .filter(Boolean);
+
+  const other = nightOrderMap.otherNight
+    .filter((name) => selected.has(name))
+    .map((name) => roleMap[name])
+    .filter(Boolean);
+
+  return { first, other };
+}
 
   function toggleRole(roleName) {
     setSelectedRoles((prev) =>
@@ -96,10 +211,6 @@ export default function App() {
   }
   return arr;
 }
-
-  useEffect(() => {
-  console.log("TEMP ROLES:", temporaryRoles);
-}, [temporaryRoles]);
 
   useEffect(() => {
   function handleMove(e) {
@@ -253,7 +364,7 @@ if (gamePhase === "game") {
   const hasRole = (name) =>
     assignedRoles.some((r) => r.name === name);
 
-  if (script === "TB") {
+  if (script === "TB" || script == "CUSTOM") {
   if (hasRole("Fortune Teller"))
     reminders.push({
       role: flatRoles.find((r) => r.name === "Fortune Teller"),
@@ -301,7 +412,7 @@ if (gamePhase === "game") {
     });
 }
 
-else if (script === "BMR") {
+if (script === "BMR" || script == "CUSTOM") {
   const getRole = (name) =>
     badMoonRising.townsfolk
       .concat(badMoonRising.outsiders)
@@ -435,6 +546,15 @@ else if (script === "BMR") {
       text: "ABILITY",
     });
 
+    if (hasRole("Gossip"))
+    reminders.push({
+      role: {
+        ...getRole("Gossip"),
+        description: getRole("Gossip")?.description || "",
+      },
+      text: "ABILITY",
+    });
+
   if (hasRole("Goon"))
     reminders.push({
       role: {
@@ -481,7 +601,7 @@ else if (script === "BMR") {
       text: "3 ATTACKS",
     });
 }
-else if (script === "SNV") {
+if (script === "SNV" || script == "CUSTOM") {
   const getRole = (name) =>
     sectsAndViolets.townsfolk
       .concat(sectsAndViolets.outsiders)
@@ -621,29 +741,163 @@ else if (script === "SNV") {
       >
         End Game
       </button>
+{/* MENU BUTTON */}
+<div style={{ position: "absolute", top: 10, right: 10, zIndex: 1000 }}>
+  <button
+    onClick={() => setMenuOpen((p) => !p)}
+    style={{
+      padding: "10px 18px",
+      borderRadius: 10,
+      border: "1px solid rgba(255,255,255,0.15)",
+      background: "rgba(0,0,0,0.45)",
+      color: "white",
+      fontSize: 14,
+      fontWeight: 600,
+      backdropFilter: "blur(8px)",
+      cursor: "pointer",
+      width: 120,
+    }}
+  >
+    Menu
+  </button>
 
+  {menuOpen && (
+    <div
+      style={{
+        marginTop: 8,
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        position: "absolute",
+        right: 0,
+      }}
+    >
+      {[
+        { label: "Character Sheet", action: () => setShowCharacterSheet(true) },
+        { label: "Night Order", action: () => setShowNightOrder(true) },
+        { label: "All Roles", action: () => setShowAllRoles(true) },
+      ].map((item) => (
         <button
-  onClick={() => setShowCharacterSheet(true)}
-  style={{
-    position: "absolute",
-    top: 10,
-    left: "50%",
-    transform: "translateX(-50%)",
-    zIndex: 1000,
+          key={item.label}
+          onClick={() => {
+            item.action();
+            setMenuOpen(false);
+          }}
+          style={{
+            width: 160,
+            padding: "10px 18px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: "rgba(0,0,0,0.45)",
+            color: "white",
+            fontSize: 14,
+            fontWeight: 600,
+            backdropFilter: "blur(8px)",
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )}
+</div>
 
-    padding: "10px 18px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.15)",
-    background: "rgba(0,0,0,0.45)",
-    color: "white",
-    fontSize: 14,
-    fontWeight: 600,
-    backdropFilter: "blur(8px)",
-    cursor: "pointer",
-  }}
->
-  Character Sheet
-</button>
+{showNightOrder && (
+  <div
+    onClick={() => setShowNightOrder(false)}
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 99999,
+      background: "rgba(0,0,0,0.85)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        width: "90%",
+        maxWidth: 700,
+        maxHeight: "85%",
+        overflowY: "auto",
+        background: "#111",
+        border: "1px solid #444",
+        borderRadius: 12,
+        padding: 20,
+        position: "relative",
+      }}
+    >
+      {/* X BUTTON */}
+      <button
+        onClick={() => setShowNightOrder(false)}
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          width: 32,
+          height: 32,
+          borderRadius: "50%",
+          border: "1px solid rgba(255,255,255,0.3)",
+          background: "rgba(255,255,255,0.08)",
+          color: "white",
+          fontSize: 18,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        ✕
+      </button>
+
+      <h2 style={{ color: "white" }}>Night Order</h2>
+
+      {(() => {
+        const { first, other } = getNightOrderRoles();
+
+        const renderRow = (role) => (
+          <div
+            key={role.name}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: 8,
+              marginBottom: 6,
+              background: "rgba(255,255,255,0.05)",
+              borderRadius: 10,
+              color: "white",
+            }}
+          >
+            <img
+              src={role.icon}
+              style={{ width: 40, height: 40, objectFit: "contain" }}
+            />
+            <span>{role.name}</span>
+          </div>
+        );
+
+        return (
+          <>
+            <h3 style={{ color: "white", marginTop: 10 }}>
+              First Night
+            </h3>
+            {first.map(renderRow)}
+
+            <h3 style={{ color: "white", marginTop: 20 }}>
+              Other Nights
+            </h3>
+            {other.map(renderRow)}
+          </>
+        );
+      })()}
+    </div>
+  </div>
+)}
 
 {showCharacterSheet && (
   <div
@@ -658,22 +912,66 @@ else if (script === "SNV") {
       alignItems: "center",
     }}
   >
+    {script === "CUSTOM" ? (
+  <div
+    style={{
+      width: "100%",
+      height: "100%",
+      overflowY: "auto",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 20,
+      padding: "60px 0",
+    }}
+  >
     <img
-      src={
-        script === "TB"
-          ? tbSheet
-          : script === "BMR"
-          ? bmrSheet
-          : snvSheet
-      }
+      src={tbSheet}
       style={{
-        maxWidth: "95%",
-        maxHeight: "95%",
-        objectFit: "contain",
+        width: "95%",
+        maxWidth: 1200,
+        height: "auto",
       }}
-      alt="Character Sheet"
+      alt="TB Sheet"
     />
 
+    <img
+      src={bmrSheet}
+      style={{
+        width: "95%",
+        maxWidth: 1200,
+        height: "auto",
+      }}
+      alt="BMR Sheet"
+    />
+
+    <img
+      src={snvSheet}
+      style={{
+        width: "95%",
+        maxWidth: 1200,
+        height: "auto",
+      }}
+      alt="SNV Sheet"
+    />
+  </div>
+) : (
+  <img
+    src={
+      script === "TB"
+        ? tbSheet
+        : script === "BMR"
+        ? bmrSheet
+        : snvSheet
+    }
+    style={{
+      maxWidth: "95%",
+      maxHeight: "95%",
+      objectFit: "contain",
+    }}
+    alt="Character Sheet"
+  />
+)}
     <button
       onClick={() => setShowCharacterSheet(false)}
       style={{
@@ -691,27 +989,6 @@ else if (script === "SNV") {
     </button>
   </div>
 )}
-
-<button
-  onClick={() => setShowAllRoles(true)}
-  style={{
-    position: "absolute",
-    top: 10,
-    right: 10,
-    zIndex: 1000,
-    padding: "10px 18px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.15)",
-    background: "rgba(0,0,0,0.45)",
-    color: "white",
-    fontSize: 14,
-    fontWeight: 600,
-    backdropFilter: "blur(8px)",
-    cursor: "pointer",
-  }}
->
-  All Roles
-</button>
 
 {showAllRoles && (
   <div
@@ -769,47 +1046,66 @@ else if (script === "SNV") {
       </h2>
 
       {roles &&
-        Object.entries(roles).map(([category, list]) => (
-          <div key={category}>
-            <h3 style={{ color: "white" }}>{category}</h3>
+  Object.entries(roles).map(([category, list]) => (
+    <div key={category}>
+      <h3 style={{ color: "white" }}>{category}</h3>
 
-            <div
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 8,
+          justifyContent: "center",
+        }}
+      >
+        {list.map((role) => (
+          <div
+            key={role.name}
+            onClick={() => setSelectedRole(role)}
+            style={{
+              width: "100%",
+              height: 110,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 10,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 4,
+              color: "white",
+              cursor: "pointer",
+              padding: 4,
+              boxSizing: "border-box",
+            }}
+          >
+            {role.icon && (
+              <img
+                src={role.icon}
+                width={80}
+                style={{
+                  objectFit: "contain",
+                  marginTop: -13,
+                }}
+              />
+            )}
+
+            <p
               style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(120px, 120px))",
-                gap: 10,
-                justifyContent: "center",
+                fontSize: 12,
+                margin: 0,
+                textAlign: "center",
+                lineHeight: 1.1,
+                wordBreak: "break-word",
               }}
             >
-              {list.map((role) => (
-                <div
-                  key={role.name}
-                  onClick={() => setSelectedRole(role)}
-                  style={{
-                    width: 120,
-                    height: 150,
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    borderRadius: 10,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    color: "white",
-                    cursor: "pointer",
-                  }}
-                >
-                  {role.icon && <img src={role.icon} width={100} />}
-                  <p style={{ fontSize: 13, marginTop: -1 }}>
-                    {role.name}
-                  </p>
-                </div>
-              ))}
-            </div>
+              {role.name}
+            </p>
           </div>
         ))}
+      </div>
+    </div>
+  ))}
     </div>
   </div>
 )}
@@ -894,6 +1190,22 @@ else if (script === "SNV") {
   >
     {selectedRole.name}
   </div>
+  {/* DESCRIPTION */}
+{selectedRole.description && (
+  <div
+    style={{
+      fontSize: 20,
+      color: "white",
+      textAlign: "center",
+      opacity: 0.8,
+      maxWidth: 320,
+      lineHeight: 1.3,
+      textShadow: "0 2px 6px rgba(0,0,0,0.6)",
+    }}
+  >
+    {selectedRole.description}
+  </div>
+)}
 </div>
 
     {/* BOTTOM ACTIONS */}
@@ -1140,28 +1452,29 @@ const p = reminderPositions[key] || {
           cycleStatus(key);
         }}
         style={{
-          position: "absolute",
-          top: 4,
-          right: 4,
-          width: 17,
-          height: 17,
-          borderRadius: "50%",
-          background:
-            playerStatus[key] === "dead_vote"
-              ? "purple"
-              : playerStatus[key] === "dead_no_vote"
-              ? "black"
-              : "white",
-          border: "1px solid rgba(255,255,255,0.6)",
-          cursor: "pointer",
-        }}
+  position: "absolute",
+  top: 4,
+  right: 4,
+  width: 17,
+  height: 17,
+  borderRadius: "50%",
+  background:
+    playerStatus[key] === "dead_vote"
+      ? "purple"
+      : playerStatus[key] === "dead_no_vote"
+      ? "black"
+      : "white",
+
+  border: "1px solid black",
+  boxSizing: "border-box",
+  cursor: "pointer",
+}}
       />
     </div>
   );
 })}
 </>
     {temporaryRoles.map((role) => {
-      console.log("TEMP MAP HIT", role.id);
   const p = tokenPositions[role.id] || {
     x: window.innerWidth / 2,
     y: window.innerHeight / 2,
@@ -1319,6 +1632,26 @@ if (screen === "menu") {
             }}
           />
 
+           <img
+            src={customLogo}
+            style={{
+              width: 160,
+              cursor: "pointer",
+              padding: 8,
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.25)",
+              background: "rgba(0,0,0,0.25)",
+              boxShadow: "0 0 10px rgba(0,0,0,0.35)",
+            }}
+            onClick={() => {
+              setSelectedRoles([]);
+              setTemporaryRoles([]);
+              setScript("CUSTOM");
+              setScreen("roles");
+              setGamePhase("menu");
+            }}
+          />
+
           {/* CCC */}
           <img
             src={ccc}
@@ -1354,6 +1687,11 @@ if (screen === "menu") {
     if (sectsAndViolets?.outsiders?.some((r) => r.name === name)) return "Outsider";
     if (sectsAndViolets?.minions?.some((r) => r.name === name)) return "Minion";
     if (sectsAndViolets?.demon?.some((r) => r.name === name)) return "Demon";
+
+    if (customScript?.townsfolk?.some((r) => r.name === name)) return "Townsfolk";
+    if (customScript?.outsiders?.some((r) => r.name === name)) return "Outsider";
+    if (customScript?.minions?.some((r) => r.name === name)) return "Minion";
+    if (customScript?.demon?.some((r) => r.name === name)) return "Demon";
 
     return "";
   };
@@ -1532,23 +1870,25 @@ if (screen === "menu") {
 // ---------------- ROLES ----------------
 return (
   <div
-    style={{
-      minHeight: "100dvh",
-      width: "100%",
-      padding: 20,
-      position: "relative",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
+  style={{
+    minHeight: "100dvh",
+    width: "100%",
+    padding: 20,
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
 
-      background:
-        script === "TB"
-          ? "#c75a5a"
-          : script === "BMR"
-          ? "#cf8a45"
-          : "#8a63c7",
-    }}
-  >
+    background:
+      script === "TB"
+        ? "#c75a5a"
+        : script === "BMR"
+        ? "#cf8a45"
+        : script === "SNV"
+        ? "#8a63c7"
+        : "#8a63c7",
+  }}
+>
     {/* BACK BUTTON */}
     <button
       onClick={() => {
@@ -1581,6 +1921,7 @@ return (
       {script === "TB" && <img src={tbLogo} width={180} />}
       {script === "BMR" && <img src={bmrLogo} width={180} />}
       {script === "SNV" && <img src={snvLogo} width={180} />}
+       {script === "CUSTOM" && <img src={snvLogo} width={180} />}
     </div>
 
     {/* PLAYER COUNT INFO */}
