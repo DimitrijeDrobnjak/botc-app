@@ -2077,13 +2077,6 @@ if (screen === "menu") {
 
   const roleType = getRoleType(role.name);
 
-  const sortedRoles = [...assignedRoles].sort((a, b) => {
-  const typeA = getRoleType(a.name);
-  const typeB = getRoleType(b.name);
-
-  return roleOrder[typeA] - roleOrder[typeB];
-});
-
   return (
     <div
       style={{
@@ -2269,7 +2262,7 @@ return (
       script === "TB"
         ? "#c75a5a"
         : script === "BMR"
-        ? "#c19263"
+        ? "#cf8a45"
         : script === "SNV"
         ? "#8a63c7"
         : "#669076",
@@ -2573,7 +2566,7 @@ return (
     marginBottom: 25,
     textAlign: "center",
     color: "white",
-    lineHeight: 0,
+    lineHeight: 1,
     textShadow: "0 1px 3px rgba(0,0,0,0.5)",
 
     maxWidth: 110,        // isto kao ikonica
