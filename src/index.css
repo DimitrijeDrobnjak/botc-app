@@ -1,0 +1,77 @@
+/* =========================
+   ROOT VARIABLES
+========================= */
+:root {
+  --text: #6b6375;
+  --text-h: #08060d;
+  --bg: #16171d;
+}
+
+/* =========================
+   GLOBAL RESET
+========================= */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+
+  width: 100%;
+  min-height: 100%;
+
+  background: #0a0a0a;
+
+  /* dozvoli scroll u meniju */
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0a0a0a;
+}
+
+/* =========================
+   GAME MODE LOCK (React toggle)
+========================= */
+body.game-lock {
+  overflow: hidden;
+  touch-action: none;
+}
+/* =========================
+   TYPOGRAPHY
+========================= */
+h1 {
+  font-family: system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+h3 {
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+/* =========================
+   IMAGE SAFETY
+========================= */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* =========================
+   BUTTON UX FIX
+========================= */
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
