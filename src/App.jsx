@@ -1889,14 +1889,14 @@ const p = reminderPositions[key] || {
   src={role.baseRole.icon}
   width={isReminder ? 45 : 65}
   style={{
-    marginTop: isReminder ? 0 : -15,
+    marginTop: isReminder ? -20 : -15,
   }}
   draggable={false}
 />
 
       <div
         style={{
-          fontSize: 10,
+          fontSize: isReminder ? 0 : 10,
           color: "white",
           textShadow: "0 1px 2px black",
           marginTop: "-10px",
@@ -1908,10 +1908,9 @@ const p = reminderPositions[key] || {
       <div
         style={{
           position: "absolute",
-          bottom: -12,
-          fontSize: 10,
+          bottom: isReminder ? 5 : -12,
+          fontSize: isReminder ? 10 : 12,
           color: "black",
-          fontWeight: "bold",
         }}
       >
         {role.label}
