@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import { troubleBrewing } from "./data/troubleBrewing";
 import { badMoonRising } from "./data/badMoonRising";
@@ -45,7 +45,10 @@ export default function App() {
   const [revealed, setRevealed] = useState(false);
   const [drunkEnabled, setDrunkEnabled] = useState(0);
   const [reminderPositions, setReminderPositions] = useState({});
+  const [playerNameInput, setPlayerNameInput] = useState("");
   const [tokenPositions, setTokenPositions] = useState({});
+  const [pendingRoles, setPendingRoles] = useState([]);
+const [customOrderPicks, setCustomOrderPicks] = useState([]);
   const [dragging, setDragging] = useState({ id: null, type: null });
   const [playerStatus, setPlayerStatus] = useState({});
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
@@ -67,6 +70,9 @@ const [bluffs, setBluffs] = useState([null, null, null]);
   const [reminderRoles, setReminderRoles] = useState([]);
   const [overTrash, setOverTrash] = useState(false);
   const [deathMarks, setDeathMarks] = useState([]);
+  const [roleChangeIndex, setRoleChangeIndex] = useState(null);
+  const [playerName, setPlayerName] = useState("");
+  const [roleChangePick, setRoleChangePick] = useState(null);
   const [customScriptRoles, setCustomScriptRoles] = useState(() => {
   const saved = localStorage.getItem("customScriptRoles");
   return saved ? JSON.parse(saved) : [];
@@ -79,12 +85,146 @@ useEffect(() => {
     JSON.stringify(customScriptRoles)
   );
 }, [customScriptRoles]);
+
+// ---- GAME AUTO-SAVE / RESTORE ----
+const GAME_SAVE_KEY = "botc_game_save";
+const isFirstMount = useRef(true);
+
+useEffect(() => {
+  try {
+    const saved = localStorage.getItem(GAME_SAVE_KEY);
+    if (!saved) return;
+    const state = JSON.parse(saved);
+    setScreen(state.screen ?? "menu");
+    setScript(state.script ?? null);
+    setSelectedRoles(state.selectedRoles ?? []);
+    setGamePhase(state.gamePhase ?? "menu");
+    setAssignedRoles(state.assignedRoles ?? []);
+    setCurrentPlayer(state.currentPlayer ?? 0);
+    setRevealed(state.revealed ?? false);
+    setDrunkEnabled(state.drunkEnabled ?? 0);
+    setReminderPositions(state.reminderPositions ?? {});
+    setTokenPositions(state.tokenPositions ?? {});
+    setPlayerStatus(state.playerStatus ?? {});
+    setJugglerMap(state.jugglerMap ?? {});
+    setOracleMap(state.oracleMap ?? {});
+    setMathematicianMap(state.mathematicianMap ?? {});
+    setTemporaryRoles(state.temporaryRoles ?? []);
+    setBluffs(state.bluffs ?? [null, null, null]);
+    setTokenMark(state.tokenMark ?? {});
+    setCustomReminders(state.customReminders ?? []);
+    setDeletedReminders(state.deletedReminders ?? []);
+    setReminderRoles(state.reminderRoles ?? []);
+    setDeathMarks(state.deathMarks ?? []);
+  } catch (e) {
+    console.error("Failed to restore saved game:", e);
+  }
+}, []);
+
+useEffect(() => {
+  if (isFirstMount.current) {
+    isFirstMount.current = false;
+    return;
+  }
+  const state = {
+    screen,
+    script,
+    selectedRoles,
+    gamePhase,
+    assignedRoles,
+    currentPlayer,
+    revealed,
+    drunkEnabled,
+    reminderPositions,
+    tokenPositions,
+    playerStatus,
+    jugglerMap,
+    oracleMap,
+    mathematicianMap,
+    temporaryRoles,
+    bluffs,
+    tokenMark,
+    customReminders,
+    deletedReminders,
+    reminderRoles,
+    deathMarks,
+  };
+  localStorage.setItem(GAME_SAVE_KEY, JSON.stringify(state));
+}, [
+  screen,
+  script,
+  selectedRoles,
+  gamePhase,
+  assignedRoles,
+  currentPlayer,
+  revealed,
+  drunkEnabled,
+  reminderPositions,
+  tokenPositions,
+  playerStatus,
+  jugglerMap,
+  oracleMap,
+  mathematicianMap,
+  temporaryRoles,
+  bluffs,
+  tokenMark,
+  customReminders,
+  deletedReminders,
+  reminderRoles,
+  deathMarks,
+]);
+
+
   const closeModal = () => {
   setSelectedRole(null);
   setShowAllRoles(false);
 };
 
   const reminderKey = (name) => `reminder_${name}`;
+
+// Zamenjuje rolu dodeljenu igraču na indeksu roleChangeIndex novom rolom,
+  // čuvajući poziciju tokena na grimoaru (preseli poziciju sa starog na novi ključ).
+  const applyRoleChange = (index, newRole, playerName) => {
+  if (index === null || index === undefined || !newRole) return;
+
+  setAssignedRoles((prev) => {
+    const oldRole = prev[index];
+    if (!oldRole) return prev;
+
+    const next = [...prev];
+
+    next[index] = {
+      ...newRole,
+      playerName: playerName,
+    };
+
+    const oldKey = reminderKey(oldRole.name);
+    const newKey = reminderKey(newRole.name);
+
+    setTokenPositions((prevPositions) => {
+      if (!(oldKey in prevPositions)) return prevPositions;
+
+      const updated = { ...prevPositions };
+      updated[newKey] = updated[oldKey];
+
+      if (oldKey !== newKey) delete updated[oldKey];
+
+      return updated;
+    });
+
+    setReminderRoles((prevReminderRoles) =>
+      prevReminderRoles.map((r) =>
+        r.name === oldRole.name ? newRole : r
+      )
+    );
+
+    return next;
+  });
+
+  setRoleChangeIndex(null);
+  setRoleChangePick(null);
+  setPlayerNameInput("");
+};
 
   const roles =
     script === "TB"
@@ -346,8 +486,8 @@ function getNightOrderRoles() {
 }
 
 function isInsideTrash(x, y) {
-  const trashWidth = 90;
-  const trashHeight = 90;
+  const trashWidth = 80;
+  const trashHeight = 80;
   const margin = 15;
 
   return (
@@ -622,7 +762,7 @@ useEffect(() => {
   if (!assignedRoles.length) return;
 
 const cx = window.innerWidth / 2;
-const cy = window.innerHeight / 2;
+const cy = window.innerHeight * 0.47;
 
 const rx = window.innerWidth * 0.38;
 const ry = window.innerHeight * 0.30;
@@ -1412,7 +1552,7 @@ if (script === "CUSTOM") {
 }
 
   const cx = window.innerWidth / 2;
-  const cy = window.innerHeight / 2;
+  const cy = window.innerHeight * 0.47;
   const reminderRadius = 70;
 
   const {
@@ -1494,8 +1634,8 @@ otherNightRoles.forEach((role, index) => {
     position: "absolute",
     left: 15,
     bottom: 15,
-    width: 90,
-    height: 90,
+    width: 80,
+    height: 80,
     zIndex: 5000,
     borderRadius: 16,
     border: "2px solid rgba(255,255,255,0.25)",
@@ -1525,8 +1665,8 @@ otherNightRoles.forEach((role, index) => {
     position: "absolute",
     right: 15,
     bottom: 15,
-    width: 90,
-    height: 90,
+    width: 80,
+    height: 80,
     zIndex: 5000,
     borderRadius: 16,
     border: overTrash
@@ -1549,8 +1689,8 @@ otherNightRoles.forEach((role, index) => {
     src={trashEmoji}
     draggable={false}
     style={{
-      width: 55,
-      height: 55,
+      width: 50,
+      height: 50,
       objectFit: "contain",
       pointerEvents: "none",
     }}
@@ -1559,6 +1699,7 @@ otherNightRoles.forEach((role, index) => {
       {/* END GAME */}
       <button
         onClick={() => {
+          localStorage.removeItem("botc_game_save");
           setGamePhase("menu");
           setScreen("menu");
           setScript(null);
@@ -1625,8 +1766,6 @@ otherNightRoles.forEach((role, index) => {
       }}
     >
       {[
-        { label: "Character Sheet", action: () => setShowCharacterSheet(true) },
-        { label: "Night Order", action: () => setShowNightOrder(true) },
         { label: "All Roles", action: () => setShowAllRoles(true) },
         { label: "Bluffs", action: () => setShowBluffs(true)},
       ].map((item) => (
@@ -1656,102 +1795,6 @@ otherNightRoles.forEach((role, index) => {
     </div>
   )}
 </div>
-
-{showNightOrder && (
-  <div
-    onClick={() => setShowNightOrder(false)}
-    style={{
-      position: "fixed",
-      inset: 0,
-      zIndex: 99999,
-      background: "rgba(0,0,0,0.85)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-    }}
-  >
-    <div
-      onClick={(e) => e.stopPropagation()}
-      style={{
-        width: "90%",
-        maxWidth: 700,
-        maxHeight: "85%",
-        overflowY: "auto",
-        background: "#111",
-        border: "1px solid #444",
-        borderRadius: 12,
-        padding: 20,
-        position: "relative",
-      }}
-    >
-      {/* X BUTTON */}
-      <button
-        onClick={() => setShowNightOrder(false)}
-        style={{
-  position: "absolute",
-  top: 10,
-  right: 10,
-  width: 40,
-  height: 40,
-  background: "transparent",
-  border: "none",
-  outline: "none",
-  color: "white",
-  fontSize: 26,
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  lineHeight: 1,
-}}
-      >
-        ✕
-      </button>
-
-      <h2 style={{ color: "white" }}>Night Order</h2>
-
-      {(() => {
-        const { first, other } = getNightOrderRoles();
-
-        const renderRow = (role) => (
-          <div
-            key={role.name}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: 8,
-              marginBottom: 6,
-              background: "rgba(255,255,255,0.05)",
-              borderRadius: 10,
-              color: "white",
-            }}
-          >
-            <img
-              src={role.icon}
-              style={{ width: 70, height: 70, objectFit: "contain" }}
-            />
-            <span>{role.name}</span>
-          </div>
-        );
-
-        return (
-          <>
-            <h3 style={{ color: "white", marginTop: 10 }}>
-              First Night
-            </h3>
-            {first.map(renderRow)}
-
-            <h3 style={{ color: "white", marginTop: 20 }}>
-              Other Nights
-            </h3>
-            {other.map(renderRow)}
-          </>
-        );
-      })()}
-    </div>
-  </div>
-)}
 
 {showBluffs && (
   <div
@@ -2077,140 +2120,6 @@ otherNightRoles.forEach((role, index) => {
   </div>
 )}
 
-{showCharacterSheet && (
-  <div
-    onClick={() => setShowCharacterSheet(false)}
-    style={{
-      
-      position: "fixed",
-      inset: 0,
-      zIndex: 9999,
-      background: "rgba(0,0,0,0.95)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-    }} 
-  >
-    <div
-      onClick={(e) => e.stopPropagation()}
-      style={{
-        width: "95%",
-        maxWidth: 1300,
-        maxHeight: "90%",
-        overflowY: "auto",
-        background: "#111",
-        border: "1px solid rgba(255,255,255,0.15)",
-        borderRadius: 12,
-        padding: 14,
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-      }}
-    >
-      <h2
-        style={{
-          color: "white",
-          textAlign: "center",
-          marginTop: 0,
-          marginBottom: 0,
-        }}
-      >
-        Character Sheet
-      </h2>
-
-      {assignedRoles.map((role, index) => (
-        <div
-          key={`${role.name}_${index}`}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-            padding: 1,
-            borderRadius: 12,
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-          }}
-        >
-          {/* TOKEN + NAME */}
-<div
-  style={{
-    width: 50,
-    flexShrink: 0,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    textAlign: "center",
-    gap: 1,
-  }}
->
-  <div
-    style={{
-      width: 30,
-      height: 30,
-      backgroundImage: `url(${circle})`,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-  >
-    <img
-      src={role.icon}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "contain",
-      }}
-    />
-  </div>
-
-  <div
-    style={{
-      color: "white",
-      fontSize: 7,
-      fontWeight: 550,
-      lineHeight: 1.1,
-    }}
-  >
-    {role.name}
-  </div>
-</div>
-
-          {/* DESCRIPTION */}
-          <div
-            style={{
-              flex: 1,
-              color: "white",
-              opacity: 0.9,
-              lineHeight: 1.2,
-              fontSize: 9,
-            }}
-          >
-            {role.description}
-          </div>
-        </div>
-      ))}
-    </div>
-
-    <button
-      onClick={() => setShowCharacterSheet(false)}
-      style={{
-        position: "absolute",
-        top: 20,
-        right: 20,
-        fontSize: 30,
-        background: "transparent",
-        border: "none",
-        color: "white",
-        cursor: "pointer",
-      }}
-    >
-      ✕
-    </button>
-  </div>
-)}
-
 {showAllRoles && (
   <div
     onClick={() => {
@@ -2281,23 +2190,27 @@ otherNightRoles.forEach((role, index) => {
       >
         {list.map((role) => (
           <div
-            key={role.name}
-            onClick={() => setSelectedRole(role)}
-            style={{
-              width: "100%",
-              height: 110,
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 10,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 4,
-              color: "white",
-              cursor: "pointer",
-              padding: 4,
-              boxSizing: "border-box",
+  key={role.name}
+  onClick={() => {
+    setSelectedRole(role);
+    setCustomPrompt("");
+    setShowPromptMenu(true);
+  }}
+  style={{
+    width: "100%",
+    height: 110,
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.2)",
+    borderRadius: 10,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    color: "white",
+    cursor: "pointer",
+    padding: 4,
+    boxSizing: "border-box",
             }}
           >
             {role.icon && (
@@ -2330,7 +2243,6 @@ otherNightRoles.forEach((role, index) => {
     </div>
   </div>
 )}
-
 {selectedRole && (
   <div
     onClick={(e) => {
@@ -2368,132 +2280,15 @@ otherNightRoles.forEach((role, index) => {
 
     {/* CENTRAL ROLE (FULL VIEW) */}
     <div
-  style={{
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "column",
-    gap: 20,
-  }}
->
-  <div
-    style={{
-      width: "min(60vw, 320px)",
-      height: "min(60vw, 320px)",
-      backgroundImage: `url(${circle})`,
-      backgroundSize: "cover",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-  >
-    <img
-      src={selectedRole.icon}
       style={{
-        width: "85%",
-        height: "85%",
-        objectFit: "contain",
-      }}
-    />
-  </div>
-
-  {/* ROLE NAME */}
-  <div
-    style={{
-      fontSize: 34,
-      fontWeight: 700,
-      color: "white",
-      textAlign: "center",
-      textShadow: "0 3px 10px rgba(0,0,0,0.8)",
-      letterSpacing: 1,
-    }}
-  >
-    {selectedRole.name}
-  </div>
-  {/* DESCRIPTION */}
-{selectedRole.description && (
-  <div
-    style={{
-      fontSize: 20,
-      color: "white",
-      textAlign: "center",
-      opacity: 0.8,
-      maxWidth: 320,
-      lineHeight: 1.3,
-      textShadow: "0 2px 6px rgba(0,0,0,0.6)",
-    }}
-  >
-    {selectedRole.description}
-  </div>
-)}
-</div>
-
-    {/* BOTTOM ACTIONS */}
-    <button
-  onClick={() => {
-    setCustomPrompt("");
-    setShowPromptMenu(true);
-  }}
-  style={{
-    maxWidth: 300,
-    width: 180,
-    marginBottom: 80,
-    padding: 16,
-    borderRadius: 12,
-    background: "rgba(249, 253, 132, 0.35)",
-    border: "1px solid rgba(255,255,255,0.2)",
-    color: "white",
-    fontSize: 14,
-    cursor: "pointer",
-  }}
->
-  ADD PROMPT
-</button>
-
-{showPromptMenu && selectedRole && (
-  <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      zIndex: 11000,
-      background: "rgba(0,0,0,0.95)",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-  >
-    <button
-      onClick={() => setShowPromptMenu(false)}
-      style={{
-        position: "absolute",
-        top: 20,
-        right: 20,
-        fontSize: 28,
-        background: "transparent",
-        border: "none",
-        color: "white",
-        cursor: "pointer",
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        gap: 20,
       }}
     >
-      ✕
-    </button>
-
-    <div
-  style={{
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "column",
-    gap: 20,
-
-    background: "#000",
-    width: "100%",
-    height: "100%",
-  }}
->
       <div
         style={{
           width: "min(60vw, 320px)",
@@ -2515,229 +2310,251 @@ otherNightRoles.forEach((role, index) => {
         />
       </div>
 
+      {/* ROLE NAME */}
       <div
         style={{
           fontSize: 34,
           fontWeight: 700,
           color: "white",
           textAlign: "center",
+          textShadow: "0 3px 10px rgba(0,0,0,0.8)",
+          letterSpacing: 1,
         }}
       >
         {selectedRole.name}
       </div>
-
-      <input
-        value={customPrompt}
-        onChange={(e) => setCustomPrompt(e.target.value)}
-        placeholder="Type anything..."
-        style={{
-          width: 300,
-          padding: 14,
-          borderRadius: 10,
-          border: "1px solid rgba(255,255,255,0.2)",
-          background: "rgba(255,255,255,0.08)",
-          color: "white",
-          fontSize: 30,
-          textAlign: "center",
-        }}
-      />
+      {/* DESCRIPTION */}
+      {selectedRole.description && (
+        <div
+          style={{
+            fontSize: 20,
+            color: "white",
+            textAlign: "center",
+            opacity: 0.8,
+            maxWidth: 320,
+            lineHeight: 1.3,
+            textShadow: "0 2px 6px rgba(0,0,0,0.6)",
+          }}
+        >
+          {selectedRole.description}
+        </div>
+      )}
     </div>
 
-    <div
+    {/* BOTTOM ACTIONS */}
+    <button
+      onClick={() => {
+        setCustomPrompt("");
+        setShowPromptMenu(true);
+      }}
       style={{
-        width: "100%",
-        padding: 20,
-        gap: 20,
-        display: "flex",
-        justifyContent: "center",
+        maxWidth: 300,
+        width: 180,
+        marginBottom: 80,
+        padding: 16,
+        borderRadius: 12,
+        background: "rgba(249, 253, 132, 0.35)",
+        border: "1px solid rgba(255,255,255,0.2)",
+        color: "white",
+        fontSize: 14,
+        cursor: "pointer",
       }}
     >
+      ADD PROMPT
+    </button>
 
-      <button
-        onClick={() => {
-          const id =
-            crypto?.randomUUID?.() ??
-            `${Date.now()}_${Math.random()}`;
-
-          setTemporaryRoles((prev) => [
-            ...prev,
-            {
-              id,
-              baseRole: selectedRole,
-              label: customPrompt || "PROMPT",
-              tipTokena: 1,
-            },
-          ]);
-
-          setTokenPositions((prev) => ({
-            ...prev,
-            [id]: {
-              x: window.innerWidth / 2,
-              y: window.innerHeight / 2,
-            },
-          }));
-          setShowPromptMenu(false);
-          setShowAllRoles(false);
-          setSelectedRole(null);
-        }}
+    {showPromptMenu && selectedRole && (
+      <div
         style={{
-          flex: 1,
-          maxWidth: 200,
-          padding: 16,
-          borderRadius: 12,
-          background: "rgba(211, 101, 255, 0.35)",
-          border: "1px solid rgba(255,255,255,0.2)",
-          color: "white",
-          fontSize: 14,
-          cursor: "pointer",
+          position: "fixed",
+          inset: 0,
+          zIndex: 11000,
+          background: "rgba(0,0,0,0.95)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-  CREATE REMINDER
-</button>
-
-      <button
-        onClick={() => {
-          const id =
-            crypto?.randomUUID?.() ??
-            `${Date.now()}_${Math.random()}`;
-
-          setTemporaryRoles((prev) => [
-            ...prev,
-            {
-              id,
-              baseRole: selectedRole,
-              label: customPrompt || "PROMPT",
-              tipTokena: 0,
-            },
-          ]);
-
-          setTokenPositions((prev) => ({
-            ...prev,
-            [id]: {
-              x: window.innerWidth / 2,
-              y: window.innerHeight / 2,
-            },
-          }));
-          setShowPromptMenu(false);
-          setShowAllRoles(false);
-          setSelectedRole(null);
-        }}
-        style={{
-          flex: 1,
-          maxWidth: 200,
-          padding: 16,
-          borderRadius: 12,
-          background: "rgba(0,120,120,0.35)",
-          border: "1px solid rgba(255,255,255,0.2)",
-          color: "white",
-          fontSize: 14,
-          cursor: "pointer",
-        }}
-      >
-        CREATE TOKEN
-      </button>
-    </div>
-  </div>
-)}
-
-    <div
+        <button
+      onClick={() => {
+        setShowPromptMenu(false);
+        setSelectedRole(null);
+      }}
       style={{
-        width: "100%",
-        padding: 20,
-        display: "flex",
-        justifyContent: "center",
-        gap: 20,
         position: "absolute",
-        bottom: 0,
+        top: 20,
+        right: 20,
+        fontSize: 28,
+        background: "transparent",
+        border: "none",
+        color: "white",
+        cursor: "pointer",
       }}
     >
-      {/* PIT-HAG */}
-      <button
-        onClick={() => {
-          const id =
-            crypto?.randomUUID?.() ??
-            `${Date.now()}_${Math.random()}`;
+      ✕
+    </button>
 
-          setTemporaryRoles((prev) => [
-            ...prev,
-            {
-              id,
-              baseRole: selectedRole,
-              label: "PIT-HAG",
-            },
-          ]);
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: 20,
 
-          setTokenPositions((prev) => ({
-            ...prev,
-            [id]: {
-              x: window.innerWidth / 2,
-              y: window.innerHeight / 2,
-            },
-          }));
+            background: "#000",
+            width: "100%",
+            height: "100%",
+          }}
+        >
+          <div
+            style={{
+              width: "min(60vw, 320px)",
+              height: "min(60vw, 320px)",
+              backgroundImage: `url(${circle})`,
+              backgroundSize: "cover",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <img
+              src={selectedRole.icon}
+              style={{
+                width: "85%",
+                height: "85%",
+                objectFit: "contain",
+              }}
+            />
+          </div>
 
-          setSelectedRole(null);
-          setShowAllRoles(false);
-        }}
-        style={{
-          flex: 1,
-          maxWidth: 200,
-          padding: 16,
-          borderRadius: 12,
-          background: "rgba(211, 101, 255, 0.35)",
-          border: "1px solid rgba(255,255,255,0.2)",
-          color: "white",
-          fontSize: 14,
-          cursor: "pointer",
-        }}
-      >
-        PIT-HAG
-      </button>
+          <div
+            style={{
+              fontSize: 34,
+              fontWeight: 700,
+              color: "white",
+              textAlign: "center",
+            }}
+          >
+            {selectedRole.name}
+          </div>
 
-      {/* CERENOVUS */}
-      <button
-        onClick={() => {
-          const id =
-            crypto?.randomUUID?.() ??
-            `${Date.now()}_${Math.random()}`;
+          <input
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder="Type anything..."
+            style={{
+              width: 300,
+              padding: 14,
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.2)",
+              background: "rgba(255,255,255,0.08)",
+              color: "white",
+              fontSize: 30,
+              textAlign: "center",
+            }}
+          />
+        </div>
 
-          setTemporaryRoles((prev) => [
-            ...prev,
-            {
-              id,
-              baseRole: selectedRole,
-              label: "CERENOVUS",
-            },
-          ]);
+        <div
+          style={{
+            width: "100%",
+            padding: 20,
+            gap: 20,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <button
+            onClick={() => {
+              const id =
+                crypto?.randomUUID?.() ??
+                `${Date.now()}_${Math.random()}`;
 
-          setTokenPositions((prev) => ({
-            ...prev,
-            [id]: {
-              x: window.innerWidth / 2,
-              y: window.innerHeight / 2,
-            },
-          }));
+              setTemporaryRoles((prev) => [
+                ...prev,
+                {
+                  id,
+                  baseRole: selectedRole,
+                  label: customPrompt,
+                  tipTokena: 1,
+                },
+              ]);
 
-          setSelectedRole(null);
-          setShowAllRoles(false);
-        }}
-        style={{
-          flex: 1,
-          maxWidth: 200,
-          padding: 16,
-          borderRadius: 12,
-          background: "rgba(0,120,120,0.35)",
-          border: "1px solid rgba(255,255,255,0.2)",
-          color: "white",
-          fontSize: 14,
-          cursor: "pointer",
-        }}
-      >
-        CERENOVUS
-      </button>
-    </div>
+              setTokenPositions((prev) => ({
+                ...prev,
+                [id]: {
+                  x: window.innerWidth / 2,
+                  y: window.innerHeight / 2,
+                },
+              }));
+              setShowPromptMenu(false);
+              setShowAllRoles(false);
+              setSelectedRole(null);
+            }}
+            style={{
+              flex: 1,
+              maxWidth: 200,
+              padding: 16,
+              borderRadius: 12,
+              background: "rgba(211, 101, 255, 0.35)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "white",
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            CREATE REMINDER
+          </button>
+
+          <button
+            onClick={() => {
+              const id =
+                crypto?.randomUUID?.() ??
+                `${Date.now()}_${Math.random()}`;
+
+              setTemporaryRoles((prev) => [
+                ...prev,
+                {
+                  id,
+                  baseRole: selectedRole,
+                  label: customPrompt,
+                  tipTokena: 0,
+                },
+              ]);
+
+              setTokenPositions((prev) => ({
+                ...prev,
+                [id]: {
+                  x: window.innerWidth / 2,
+                  y: window.innerHeight / 2,
+                },
+              }));
+              setShowPromptMenu(false);
+              setShowAllRoles(false);
+              setSelectedRole(null);
+            }}
+            style={{
+              flex: 1,
+              maxWidth: 200,
+              padding: 16,
+              borderRadius: 12,
+              background: "rgba(0,120,120,0.35)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "white",
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            CREATE TOKEN
+          </button>
+        </div>
+      </div>
+    )}
   </div>
 )}
-
       {/* REMINDERS */}
       {/* REMINDERS (DRAGGABLE) */}
       
@@ -2904,7 +2721,7 @@ const p = reminderPositions[key] || {
 })}
 
 <>
- {assignedRoles.map((role) => {
+ {assignedRoles.map((role, assignedIndex) => {
   const key = reminderKey(role.name);
   const p = tokenPositions[key] || { x: 100, y: 100 };
   const firstNightNumber = firstNightNumbers[role.name];
@@ -2946,6 +2763,30 @@ const otherNightNumber = otherNightNumbers[role.name];
         zIndex: 2,
       }}
     >
+      {/* PLAYER NAME (iznad tokena) */}
+      {role.playerName && (
+        <div
+  style={{
+    position: "absolute",
+    top: -10,
+    left: "50%",
+    transform: "translateX(-50%)",
+    fontSize: 10,
+    fontWeight: 600,
+    color: "white",
+    textShadow: "0 1px 3px black",
+    whiteSpace: "nowrap",
+    pointerEvents: "none",
+    background: "rgba(0,0,0,0.3)",
+    padding: "3px 12px",
+    border: "1px solid rgba(255, 255, 255, 0.6)",
+    borderRadius: 6,
+    zIndex: 6,
+  }}
+>
+  {role.playerName}
+</div>
+      )}
       {firstNightNumber && (
   <div
     style={{
@@ -3042,6 +2883,41 @@ const otherNightNumber = otherNightNumbers[role.name];
       >
         {role.name}
       </div>
+
+      {/* GEAR / SETTINGS - promena rola */}
+      <div
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          setRoleChangeIndex(assignedIndex);
+          setRoleChangePick(role);
+          setPlayerNameInput(
+  assignedRoles[assignedIndex]?.playerName || ""
+);
+        }}
+        title="Role Settings"
+        style={{
+          position: "absolute",
+          left: 26,
+          bottom: -12,
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          background: "rgba(107, 107, 107, 0.8)",
+          border: "1px solid rgba(255,255,255,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 13,
+          lineHeight: 1,
+          cursor: "pointer",
+          zIndex: 6,
+          boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+        }}
+      >
+        ⚙️
+      </div>
     </div>
   </>
   );
@@ -3108,6 +2984,225 @@ const otherNightNumber = otherNightNumbers[role.name];
     />
   );
 })}
+
+{/* MENI ZA PROMENU ROLE (klik na zupčanik na tokenu) */}
+{roleChangeIndex !== null && (
+  <div
+    onClick={(e) => {
+      if (e.target === e.currentTarget) {
+        setRoleChangeIndex(null);
+        setRoleChangePick(null);
+        setPlayerNameInput("");
+      }
+    }}
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 12000,
+      background: "rgba(0,0,0,0.8)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      pointerEvents: "auto",
+    }}
+  >
+    {/* X */}
+    <button
+      onClick={() => {
+        setRoleChangeIndex(null);
+        setRoleChangePick(null);
+        setPlayerNameInput("");
+      }}
+      style={{
+        position: "fixed",
+        top: 50,
+        right: 15,
+        zIndex: 12001,
+        fontSize: 26,
+        background: "transparent",
+        border: "none",
+        color: "white",
+        cursor: "pointer",
+        pointerEvents: "auto",
+      }}
+    >
+      ✕
+    </button>
+
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        width: "99%",
+        maxWidth: 950,
+        height: "90%",
+        background: "#111",
+        border: "1px solid #444",
+        borderRadius: 12,
+        overflowY: "auto",
+        padding: 20,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <h2 style={{ color: "white", textAlign: "center", marginTop: 0 }}>
+        Role Settings
+      </h2>
+
+      <div
+  style={{
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 15,
+  }}
+>
+  <label style={{ color: "white", fontSize: 18 }}>
+    Name:
+  </label>
+
+  <input
+    type="text"
+    maxLength={10}
+    value={playerNameInput}
+    onChange={(e) => setPlayerNameInput(e.target.value)}
+    style={{
+      background: "rgba(255,255,255,0.08)",
+      border: "1px solid rgba(255,255,255,0.3)",
+      borderRadius: 8,
+      color: "white",
+      padding: "6px 10px",
+      fontSize: 16,
+      width: 150,
+    }}
+  />
+</div>
+      <div style={{ flex: 1 }}>
+        {visibleRoles &&
+          Object.entries(visibleRoles).map(([category, list]) => (
+            <div key={category}>
+              <h3
+                style={{
+                  color: "white",
+                  textTransform: "capitalize",
+                }}
+              >
+                {category}
+              </h3>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 8,
+                  justifyContent: "center",
+                }}
+              >
+                {list.map((role) => {
+                  const isPicked = roleChangePick?.name === role.name;
+                  const isTaken = assignedRoles.some(
+                    (r, i) => r.name === role.name && i !== roleChangeIndex
+                  );
+                  return (
+                    <div
+                      key={role.name}
+                      onClick={() => {
+                        if (isTaken) return;
+                        setRoleChangePick(role);
+                      }}
+                      style={{
+                        width: "100%",
+                        height: 110,
+                        background: isPicked
+                          ? "rgba(0,255,0,0.16)"
+                          : "rgba(255,255,255,0.05)",
+                        border: isPicked
+                          ? "2px solid lime"
+                          : "1px solid rgba(255,255,255,0.2)",
+                        borderRadius: 10,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 4,
+                        color: "white",
+                        cursor: isTaken ? "not-allowed" : "pointer",
+                        padding: 4,
+                        boxSizing: "border-box",
+                        opacity: isTaken ? 0.35 : 1,
+                        filter: isTaken ? "grayscale(1)" : "none",
+                      }}
+                    >
+                      {role.icon && (
+                        <img
+                          src={role.icon}
+                          width={80}
+                          style={{
+                            objectFit: "contain",
+                            marginTop: -13,
+                          }}
+                          draggable={false}
+                        />
+                      )}
+
+                      <p
+                        style={{
+                          fontSize: 12,
+                          margin: 0,
+                          textAlign: "center",
+                          lineHeight: 1.1,
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {role.name}
+                      </p>
+
+                      {isTaken && (
+                        <p
+                          style={{
+                            fontSize: 9,
+                            margin: 0,
+                            color: "rgba(255,120,120,0.9)",
+                            textAlign: "center",
+                          }}
+                        >
+                          Već u igri
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+      </div>
+
+      {/* SAVE DUGME */}
+      <button
+        disabled={!roleChangePick}
+        onClick={() => applyRoleChange(
+  roleChangeIndex,
+  roleChangePick,
+  playerNameInput
+)}
+        style={{
+          marginTop: 16,
+          alignSelf: "center",
+          padding: "14px 60px",
+          fontSize: 18,
+          borderRadius: 12,
+          border: "1px solid rgba(255,255,255,0.15)",
+          background: "rgba(255,255,255,0.08)",
+          color: "white",
+          cursor: !roleChangePick ? "not-allowed" : "pointer",
+          opacity: !roleChangePick ? 0.5 : 1,
+        }}
+      >
+        Save
+      </button>
+    </div>
+  </div>
+)}
     {temporaryRoles.map((role) => {
       const isReminder = role.tipTokena === 1;
   const p = tokenPositions[role.id] || {
@@ -3603,6 +3698,219 @@ if (screen === "customScriptSetup") {
   );
 }
 
+if (gamePhase === "distributionChoice") {
+  return (
+    <div
+      style={{
+        ...pageStyle(gameBackground),
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 20,
+        textAlign: "center",
+      }}
+    >
+      <h1 style={{ margin: 0, color: "white" }}>Role Distribution</h1>
+
+      <button
+        onClick={() => {
+          const shuffledRoles = shuffle(pendingRoles);
+          setAssignedRoles(shuffledRoles);
+          setReminderRoles(shuffledRoles);
+          setCurrentPlayer(0);
+          setRevealed(false);
+          setGamePhase("assign");
+        }}
+        style={{
+  padding: "16px 40px",
+  fontSize: 18,
+  fontWeight: 600,
+  borderRadius: 14,
+  border: "1px solid rgba(255,255,255,0.25)",
+  background: "linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))",
+  color: "white",
+  cursor: "pointer",
+  width: 280,
+  boxShadow: "0 4px 15px rgba(0,0,0,0.5)",
+  transition: "0.2s ease",
+}}
+      >
+        Random Roles Distribution
+      </button>
+
+      <button
+        onClick={() => {
+          setCustomOrderPicks([]);
+          setGamePhase("customOrder");
+        }}
+        style={{
+  padding: "16px 40px",
+  fontSize: 18,
+  fontWeight: 600,
+  borderRadius: 14,
+  border: "1px solid rgba(255,255,255,0.25)",
+  background: "linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))",
+  color: "white",
+  cursor: "pointer",
+  width: 280,
+  boxShadow: "0 4px 15px rgba(0,0,0,0.5)",
+  transition: "0.2s ease",
+}}
+      >
+        Custom Role Distribution
+      </button>
+    </div>
+  );
+}
+
+if (gamePhase === "customOrder") {
+  const toggleOrderPick = (role) => {
+    setCustomOrderPicks((prev) => {
+      const already = prev.some((r) => r.name === role.name);
+      if (already) {
+        return prev.filter((r) => r.name !== role.name);
+      }
+      return [...prev, role];
+    });
+  };
+
+  return (
+    <div
+      style={{
+        ...pageStyle(gameBackground),
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 16,
+        textAlign: "center",
+        padding: "24px 16px",
+        overflowY: "auto",
+      }}
+    >
+      <h1 style={{ marginTop: 70, color: "white" }}>Custom Role Distribution</h1>
+      <p style={{ color: "white", opacity: 0.7, maxWidth: 420 }}>
+        Select the roles in the order you want players to receive them (first click = Player 1, second click = Player 2, and so on).
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 10,
+          maxWidth: 480,
+          width: "100%",
+        }}
+      >
+        {pendingRoles.map((role) => {
+          const orderIndex = customOrderPicks.findIndex(
+            (r) => r.name === role.name
+          );
+          const isPicked = orderIndex !== -1;
+
+          return (
+            <div
+              key={role.name}
+              onClick={() => toggleOrderPick(role)}
+              style={{
+                position: "relative",
+                width: "100%",
+                height: 110,
+                background: isPicked
+                  ? "rgba(0,255,0,0.16)"
+                  : "rgba(255,255,255,0.05)",
+                border: isPicked
+                  ? "2px solid lime"
+                  : "1px solid rgba(255,255,255,0.2)",
+                borderRadius: 10,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                color: "white",
+                cursor: "pointer",
+                padding: 4,
+                boxSizing: "border-box",
+              }}
+            >
+              {isPicked && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    left: 4,
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
+                    background: "lime",
+                    color: "black",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {orderIndex + 1}
+                </div>
+              )}
+
+              {role.icon && (
+                <img
+                  src={role.icon}
+                  width={80}
+                  style={{ objectFit: "contain", marginTop: -13 }}
+                  draggable={false}
+                />
+              )}
+
+              <p
+                style={{
+                  fontSize: 12,
+                  margin: 0,
+                  textAlign: "center",
+                  lineHeight: 1.1,
+                  wordBreak: "break-word",
+                }}
+              >
+                {role.name}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        disabled={customOrderPicks.length !== pendingRoles.length}
+        onClick={() => {
+          setAssignedRoles(customOrderPicks);
+          setReminderRoles(customOrderPicks);
+          setCurrentPlayer(0);
+          setRevealed(false);
+          setGamePhase("assign");
+        }}
+        style={{
+          marginTop: 8,
+          padding: "16px 60px",
+          fontSize: 18,
+          borderRadius: 12,
+          border: "1px solid rgba(255,255,255,0.15)",
+          background: "rgba(255,255,255,0.08)",
+          color: "white",
+          cursor:
+            customOrderPicks.length !== pendingRoles.length
+              ? "not-allowed"
+              : "pointer",
+          opacity:
+            customOrderPicks.length !== pendingRoles.length ? 0.5 : 1,
+        }}
+      >
+        Confirm ({customOrderPicks.length}/{pendingRoles.length})
+      </button>
+    </div>
+  );
+}
 
   // ---------------- ASSIGN ----------------
   if (gamePhase === "assign") {
@@ -4248,12 +4556,11 @@ height: 65,
             .map((name) => visibleFlatRoles.find((r) => r.name === name))
             .filter(Boolean);
 
-          const shuffledRoles = shuffle(picked);
-          setAssignedRoles(shuffledRoles);
-          setReminderRoles(shuffledRoles);
+          setPendingRoles(picked);
+          setCustomOrderPicks([]);
           setCurrentPlayer(0);
           setRevealed(false);
-          setGamePhase("assign");
+          setGamePhase("distributionChoice");
 
           const hasDrunk = selectedRoles.includes("Drunk");
           setDrunkEnabled(hasDrunk ? 1 : 0);
