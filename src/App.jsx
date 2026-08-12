@@ -44,6 +44,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [drunkEnabled, setDrunkEnabled] = useState(0);
+  const [marionetteEnabled, setMarionetteEnabled] = useState(0);
   const [reminderPositions, setReminderPositions] = useState({});
   const [playerNameInput, setPlayerNameInput] = useState("");
   const [tokenPositions, setTokenPositions] = useState({});
@@ -103,6 +104,7 @@ useEffect(() => {
     setCurrentPlayer(state.currentPlayer ?? 0);
     setRevealed(state.revealed ?? false);
     setDrunkEnabled(state.drunkEnabled ?? 0);
+    setMarionetteEnabled(state.marionetteEnabled ?? 0);
     setReminderPositions(state.reminderPositions ?? {});
     setTokenPositions(state.tokenPositions ?? {});
     setPlayerStatus(state.playerStatus ?? {});
@@ -135,6 +137,7 @@ useEffect(() => {
     currentPlayer,
     revealed,
     drunkEnabled,
+    marionetteEnabled,
     reminderPositions,
     tokenPositions,
     playerStatus,
@@ -159,6 +162,7 @@ useEffect(() => {
   currentPlayer,
   revealed,
   drunkEnabled,
+  marionetteEnabled,
   reminderPositions,
   tokenPositions,
   playerStatus,
@@ -193,13 +197,16 @@ useEffect(() => {
 
     const next = [...prev];
 
+    const instanceId = oldRole.id ?? oldRole.name;
+
     next[index] = {
       ...newRole,
       playerName: playerName,
+      id: instanceId,
     };
 
-    const oldKey = reminderKey(oldRole.name);
-    const newKey = reminderKey(newRole.name);
+    const oldKey = reminderKey(instanceId);
+    const newKey = reminderKey(instanceId);
 
     setTokenPositions((prevPositions) => {
       if (!(oldKey in prevPositions)) return prevPositions;
@@ -466,7 +473,7 @@ function getNightOrderRoles() {
   const selected = new Set(
     assignedRoles
       .filter((role) => {
-        const key = reminderKey(role.name);
+        const key = reminderKey(role.id ?? role.name);
         return !deadRoles.has(key);
       })
       .map((role) => role.name.toLowerCase())
@@ -503,7 +510,7 @@ function deleteDraggedItem(item) {
 
   if (item.type === "assignedToken") {
     setAssignedRoles((prev) =>
-      prev.filter((role) => reminderKey(role.name) !== item.id)
+      prev.filter((role) => reminderKey(role.id ?? role.name) !== item.id)
     );
 
     setTokenPositions((prev) => {
@@ -585,6 +592,31 @@ const roleOrder = {
         : [...prev, roleName]
     );
   }
+
+  // Izvlači bazno ime role iz kompozitnog ID-a (npr. "Imp__2" -> "Imp")
+  const baseRoleName = (id) => id.replace(/__\d+$/, "");
+
+  // Broj trenutno izabranih kopija date role (dozvoljava duplikate u CUSTOM skripti)
+  const getSelectedRoleCount = (roleName) =>
+    selectedRoles.filter((id) => baseRoleName(id) === roleName).length;
+
+  // Dodaje jednu kopiju role (sledeći slobodan broj u ID-u)
+  const addRoleSelection = (roleName) => {
+    setSelectedRoles((prev) => {
+      const count = prev.filter((id) => baseRoleName(id) === roleName).length;
+      return [...prev, `${roleName}__${count + 1}`];
+    });
+  };
+
+  // Uklanja poslednju dodatu kopiju role
+  const removeRoleSelection = (roleName) => {
+    setSelectedRoles((prev) => {
+      const matching = prev.filter((id) => baseRoleName(id) === roleName);
+      if (matching.length === 0) return prev;
+      const lastId = matching[matching.length - 1];
+      return prev.filter((id) => id !== lastId);
+    });
+  };
 
   function cycleMark(key) {
   setTokenMark((prev) => {
@@ -686,7 +718,7 @@ if (isInsideTrash(x, y)) {
   let closestDistance = Infinity;
 
   assignedRoles.forEach((role) => {
-    const tokenKey = reminderKey(role.name);
+    const tokenKey = reminderKey(role.id ?? role.name);
     const tokenPosition = tokenPositions[tokenKey];
 
     if (!tokenPosition) return;
@@ -806,7 +838,7 @@ for (let i = 0; i < Math.floor(twoPi / deltaTheta); i++) {
 
     const role = assignedRoles[nextPoint];
     if (role) {
-      positions[reminderKey(role.name)] = { x, y };
+      positions[reminderKey(role.id ?? role.name)] = { x, y };
     }
 
     nextPoint++;
@@ -1437,7 +1469,7 @@ if (script === "CUSTOM") {
   }
 
   // MARIONETTE
-  if (hasRole("Marionette"))
+  if (marionetteEnabled === 1)
     addReminder("Marionette", "IS THE MARIONETTE");
 
   // MEZEPHELES
@@ -2722,7 +2754,7 @@ const p = reminderPositions[key] || {
 
 <>
  {assignedRoles.map((role, assignedIndex) => {
-  const key = reminderKey(role.name);
+  const key = reminderKey(role.id ?? role.name);
   const p = tokenPositions[key] || { x: 100, y: 100 };
   const firstNightNumber = firstNightNumbers[role.name];
 const otherNightNumber = otherNightNumbers[role.name];
@@ -3100,16 +3132,10 @@ const otherNightNumber = otherNightNumbers[role.name];
               >
                 {list.map((role) => {
                   const isPicked = roleChangePick?.name === role.name;
-                  const isTaken = assignedRoles.some(
-                    (r, i) => r.name === role.name && i !== roleChangeIndex
-                  );
                   return (
                     <div
                       key={role.name}
-                      onClick={() => {
-                        if (isTaken) return;
-                        setRoleChangePick(role);
-                      }}
+                      onClick={() => setRoleChangePick(role)}
                       style={{
                         width: "100%",
                         height: 110,
@@ -3126,11 +3152,9 @@ const otherNightNumber = otherNightNumbers[role.name];
                         justifyContent: "center",
                         gap: 4,
                         color: "white",
-                        cursor: isTaken ? "not-allowed" : "pointer",
+                        cursor: "pointer",
                         padding: 4,
                         boxSizing: "border-box",
-                        opacity: isTaken ? 0.35 : 1,
-                        filter: isTaken ? "grayscale(1)" : "none",
                       }}
                     >
                       {role.icon && (
@@ -3156,19 +3180,6 @@ const otherNightNumber = otherNightNumbers[role.name];
                       >
                         {role.name}
                       </p>
-
-                      {isTaken && (
-                        <p
-                          style={{
-                            fontSize: 9,
-                            margin: 0,
-                            color: "rgba(255,120,120,0.9)",
-                            textAlign: "center",
-                          }}
-                        >
-                          Već u igri
-                        </p>
-                      )}
                     </div>
                   );
                 })}
@@ -3344,7 +3355,16 @@ backgroundRepeat: "no-repeat",
 if (screen === "menu") {
   return (
     <div style={pageStyle(menuBackground)}>
-      <div style={{ textAlign: "center", paddingTop: 50 }}>
+      <div
+  style={{
+    minHeight: "100dvh",
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
         
         {/* MAIN TITLE */}
         <img
@@ -3364,20 +3384,29 @@ if (screen === "menu") {
             alignItems: "center",
             gap: 10,
             marginTop: 30,
-            maxWidth: 260,
             marginInline: "auto",
           }}
         >
+          <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 150px)",
+    gap: 10,
+  }}
+>
           <img
             src={tbLogo}
             style={{
-              width: 160,
+              width: 150,
+height: 150,
+objectFit: "contain",
               cursor: "pointer",
               padding: 8,
               borderRadius: 12,
               border: "1px solid rgba(255,255,255,0.25)",
               background: "rgba(0,0,0,0.25)",
               boxShadow: "0 0 10px rgba(0,0,0,0.35)",
+              boxSizing: "border-box",
             }}
             onClick={() => {
               setSelectedRoles([]);
@@ -3391,13 +3420,16 @@ if (screen === "menu") {
           <img
             src={bmrLogo}
             style={{
-              width: 160,
+              width: 150,
+height: 150,
+objectFit: "contain",
               cursor: "pointer",
               padding: 8,
               borderRadius: 12,
               border: "1px solid rgba(255,255,255,0.25)",
               background: "rgba(0,0,0,0.25)",
               boxShadow: "0 0 10px rgba(0,0,0,0.35)",
+              boxSizing: "border-box",
             }}
             onClick={() => {
               setSelectedRoles([]);
@@ -3411,13 +3443,16 @@ if (screen === "menu") {
           <img
             src={snvLogo}
             style={{
-              width: 160,
+              width: 150,
+height: 150,
+objectFit: "contain",
               cursor: "pointer",
               padding: 8,
               borderRadius: 12,
               border: "1px solid rgba(255,255,255,0.25)",
               background: "rgba(0,0,0,0.25)",
               boxShadow: "0 0 10px rgba(0,0,0,0.35)",
+              boxSizing: "border-box",
             }}
             onClick={() => {
               setSelectedRoles([]);
@@ -3431,15 +3466,16 @@ if (screen === "menu") {
            <img
             src={customLogo}
             style={{
-              width: 160,
+              width: 150,
+height: 150,
+objectFit: "contain",
               cursor: "pointer",
-              display: "block",
-              margin: "0 auto",
               padding: 8,
               borderRadius: 12,
               border: "1px solid rgba(255,255,255,0.25)",
               background: "rgba(0,0,0,0.25)",
               boxShadow: "0 0 10px rgba(0,0,0,0.35)",
+              boxSizing: "border-box",
             }}
             onClick={() => {
   setSelectedRoles([]);
@@ -3455,6 +3491,7 @@ if (screen === "menu") {
   }
 }}
           />
+          </div>
 
           {/* CCC */}
           <img
@@ -3474,10 +3511,14 @@ if (screen === "menu") {
 
 // ---------------- CUSTOM SCRIPT SETUP ----------------
 if (screen === "customScriptSetup") {
-  const toggleCustomDraftRole = (roleName) => {
+  // Da li je rola već u draftu skripte
+  const isDraftSelected = (roleName) => customScriptDraft.includes(roleName);
+
+  // Dodaje/uklanja rolu iz drafta skripte (svaka rola samo jednom - skripta sadrži jedinstvene role)
+  const toggleDraftRole = (roleName) => {
     setCustomScriptDraft((prev) =>
       prev.includes(roleName)
-        ? prev.filter((name) => name !== roleName)
+        ? prev.filter((r) => r !== roleName)
         : [...prev, roleName]
     );
   };
@@ -3563,19 +3604,19 @@ if (screen === "customScriptSetup") {
       }}
     >
       {list.map((role) => {
-        const isSelected = customScriptDraft.includes(role.name);
+        const isSelected = isDraftSelected(role.name);
 
         return (
           <div
             key={role.name}
-            onClick={() => toggleCustomDraftRole(role.name)}
+            onClick={() => toggleDraftRole(role.name)}
             style={{
               width: "100%",
               height: 145,
               padding: "4px 5px",
               borderRadius: 10,
-              cursor: "pointer",
               boxSizing: "border-box",
+              cursor: "pointer",
 
               background: isSelected
                 ? "rgba(0,255,0,0.16)"
@@ -3767,9 +3808,9 @@ if (gamePhase === "distributionChoice") {
 if (gamePhase === "customOrder") {
   const toggleOrderPick = (role) => {
     setCustomOrderPicks((prev) => {
-      const already = prev.some((r) => r.name === role.name);
+      const already = prev.some((r) => r.id === role.id);
       if (already) {
-        return prev.filter((r) => r.name !== role.name);
+        return prev.filter((r) => r.id !== role.id);
       }
       return [...prev, role];
     });
@@ -3804,13 +3845,13 @@ if (gamePhase === "customOrder") {
       >
         {pendingRoles.map((role) => {
           const orderIndex = customOrderPicks.findIndex(
-            (r) => r.name === role.name
+            (r) => r.id === role.id
           );
           const isPicked = orderIndex !== -1;
 
           return (
             <div
-              key={role.name}
+              key={role.id}
               onClick={() => toggleOrderPick(role)}
               style={{
                 position: "relative",
@@ -4363,21 +4404,28 @@ return (
               justifyContent: "center",
             }}
           >
-            {list.map((role) => (
+            {list.map((role) => {
+              const isCustom = script === "CUSTOM";
+              const selectedCount = getSelectedRoleCount(role.name);
+              const isSelected = isCustom
+                ? selectedCount > 0
+                : selectedRoles.includes(role.name);
+
+              return (
   <div
     key={role.name}
-    onClick={() => toggleRole(role.name)}
+    onClick={isCustom ? undefined : () => toggleRole(role.name)}
     style={{
   width: "100%",
-height: 145,
+height: isCustom ? 180 : 145,
 padding: "4px 5px",
 borderRadius: 10,
 
-  background: selectedRoles.includes(role.name)
+  background: isSelected
     ? "rgba(0,255,0,0.16)"
     : "rgba(255,255,255,0.07)",
 
-  border: selectedRoles.includes(role.name)
+  border: isSelected
     ? "2px solid lime"
     : "1px solid rgba(255,255,255,0.12)",
 
@@ -4444,7 +4492,7 @@ height: 65,
     {/* ROLE DESCRIPTION */}
     <p
       style={{
-  margin: "4px 0 0 0",
+  margin: "0px 0 0 0",
   width: "100%",
 
   fontSize: 7,
@@ -4459,8 +4507,76 @@ height: 65,
     >
       {role.description || "No description available."}
     </p>
+
+    {isCustom && (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          marginTop: "auto",
+          paddingTop: 2,
+        }}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            removeRoleSelection(role.name);
+          }}
+          disabled={selectedCount === 0}
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.3)",
+            background: "rgba(0,0,0,0.35)",
+            color: "white",
+            fontSize: 15,
+            lineHeight: 1,
+            cursor: selectedCount === 0 ? "not-allowed" : "pointer",
+            opacity: selectedCount === 0 ? 0.4 : 1,
+          }}
+        >
+          −
+        </button>
+
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: "bold",
+            minWidth: 16,
+            textAlign: "center",
+            color: "white",
+          }}
+        >
+          {selectedCount}
+        </span>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            addRoleSelection(role.name);
+          }}
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.3)",
+            background: "rgba(0,0,0,0.35)",
+            color: "white",
+            fontSize: 15,
+            lineHeight: 1,
+            cursor: "pointer",
+          }}
+        >
+          +
+        </button>
+      </div>
+    )}
   </div>
-))}
+              );
+            })}
           </div>
         </div>
       ))}
@@ -4521,30 +4637,34 @@ height: 65,
 
   <div>
     Townsfolk -{" "}
-    {roles?.townsfolk?.filter((role) =>
-      selectedRoles.includes(role.name)
-    ).length || 0}
+    {roles?.townsfolk?.reduce(
+      (sum, role) => sum + getSelectedRoleCount(role.name),
+      0
+    ) || 0}
   </div>
 
   <div>
     Outsiders -{" "}
-    {roles?.outsiders?.filter((role) =>
-      selectedRoles.includes(role.name)
-    ).length || 0}
+    {roles?.outsiders?.reduce(
+      (sum, role) => sum + getSelectedRoleCount(role.name),
+      0
+    ) || 0}
   </div>
 
   <div>
     Minions -{" "}
-    {roles?.minions?.filter((role) =>
-      selectedRoles.includes(role.name)
-    ).length || 0}
+    {roles?.minions?.reduce(
+      (sum, role) => sum + getSelectedRoleCount(role.name),
+      0
+    ) || 0}
   </div>
 
   <div>
     Demons -{" "}
-    {roles?.demon?.filter((role) =>
-      selectedRoles.includes(role.name)
-    ).length || 0}
+    {roles?.demon?.reduce(
+      (sum, role) => sum + getSelectedRoleCount(role.name),
+      0
+    ) || 0}
   </div>
 </div>
 
@@ -4552,9 +4672,13 @@ height: 65,
         disabled={selectedRoles.length === 0}
         onClick={() => {
           const picked = selectedRoles
-            .filter((name) => name !== "Drunk")
-            .map((name) => visibleFlatRoles.find((r) => r.name === name))
-            .filter(Boolean);
+            .filter((id) => baseRoleName(id) !== "Drunk")
+            .filter((id) => baseRoleName(id) !== "Marionette")
+            .map((id) =>
+              visibleFlatRoles.find((r) => r.name === baseRoleName(id))
+            )
+            .filter(Boolean)
+            .map((r, i) => ({ ...r, id: `${r.name}__inst${i}` }));
 
           setPendingRoles(picked);
           setCustomOrderPicks([]);
@@ -4562,8 +4686,15 @@ height: 65,
           setRevealed(false);
           setGamePhase("distributionChoice");
 
-          const hasDrunk = selectedRoles.includes("Drunk");
+          const hasDrunk = selectedRoles.some(
+            (id) => baseRoleName(id) === "Drunk"
+          );
           setDrunkEnabled(hasDrunk ? 1 : 0);
+
+          const hasMarionette = selectedRoles.some(
+            (id) => baseRoleName(id) === "Marionette"
+          );
+          setMarionetteEnabled(hasMarionette ? 1 : 0);
         }}
         style={{
           padding: "16px 60px",
